@@ -1,0 +1,1405 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>FamilyApp — Viajes</title>
+  <style>
+    /* ── Reset & variables ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #f5f5f7;
+      --surface: #ffffff;
+      --border:  #e0e0e0;
+      --text:    #1a1a1a;
+      --muted:   #6b7280;
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --danger:  #dc2626;
+
+      /* item type colours */
+      --flight:     #3b82f6;
+      --hotel:      #8b5cf6;
+      --restaurant: #f97316;
+      --activity:   #22c55e;
+      --ticket:     #ec4899;
+      --note:       #94a3b8;
+
+      --radius: 12px;
+      --shadow: 0 1px 4px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+    }
+
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      background: none;
+      font: inherit;
+      color: inherit;
+    }
+
+    input, textarea {
+      font: inherit;
+      color: inherit;
+    }
+
+    a { color: var(--primary); text-decoration: none; }
+
+    /* ── Layout utilities ── */
+    .hidden { display: none !important; }
+
+    .view {
+      display: none;
+      flex-direction: column;
+      height: 100dvh;
+      overflow: hidden;
+    }
+    .view.active { display: flex; }
+
+    /* ── Top bar ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      min-height: 56px;
+    }
+    .topbar h1 { font-size: 17px; font-weight: 700; flex: 1; }
+    .topbar .back-btn {
+      width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 50%;
+      background: var(--bg);
+      font-size: 18px;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      transition: background .15s, opacity .15s;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-ghost { background: var(--bg); color: var(--text); }
+    .btn-ghost:hover { background: var(--border); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-sm { padding: 6px 12px; font-size: 13px; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ── Form fields ── */
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 13px; font-weight: 600; color: var(--muted); }
+    .field input, .field textarea, .field select {
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      width: 100%;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .field input:focus, .field textarea:focus, .field select:focus {
+      border-color: var(--primary);
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+
+    /* ── Spinner ── */
+    .spinner {
+      width: 20px; height: 20px;
+      border: 2px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ══════════════════════════════════════════════════════
+       VIEW: AUTH
+    ══════════════════════════════════════════════════════ */
+    #view-auth {
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .auth-box {
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .auth-logo {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .auth-logo .logo-icon { font-size: 48px; }
+    .auth-logo h1 { font-size: 26px; font-weight: 800; margin-top: 8px; }
+    .auth-logo p { color: var(--muted); font-size: 14px; }
+
+    .auth-tabs {
+      display: flex;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 24px;
+    }
+    .auth-tab {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      font-weight: 600;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: color .15s, border-color .15s;
+    }
+    .auth-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    .auth-form { display: flex; flex-direction: column; gap: 16px; }
+    .auth-error {
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: #fee2e2;
+      color: #991b1b;
+      font-size: 13px;
+    }
+
+    /* ══════════════════════════════════════════════════════
+       VIEW: TRIPS LIST
+    ══════════════════════════════════════════════════════ */
+    #view-trips { background: var(--bg); }
+
+    .trips-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .trip-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+      cursor: pointer;
+      transition: transform .1s;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .trip-card:active { transform: scale(.98); }
+    .trip-card-emoji { font-size: 32px; flex-shrink: 0; }
+    .trip-card-info { flex: 1; min-width: 0; }
+    .trip-card-name { font-weight: 700; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .trip-card-dates { font-size: 13px; color: var(--muted); margin-top: 2px; }
+    .trip-card-members { font-size: 12px; color: var(--muted); }
+
+    .new-trip-btn {
+      margin: 0 16px 16px;
+      width: calc(100% - 32px);
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.4);
+      display: flex; align-items: flex-end; justify-content: center;
+      z-index: 100;
+      padding: 0;
+    }
+    .modal-backdrop.hidden { display: none; }
+    .modal {
+      background: var(--surface);
+      border-radius: 20px 20px 0 0;
+      padding: 24px;
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-height: 90dvh;
+      overflow-y: auto;
+    }
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .modal-actions .btn { flex: 1; }
+
+    /* ══════════════════════════════════════════════════════
+       VIEW: TRIP DETAIL
+    ══════════════════════════════════════════════════════ */
+    #view-trip { background: var(--bg); }
+
+    /* Tab switcher */
+    .tab-bar {
+      display: flex;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 12px 8px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+      transition: color .15s, border-color .15s;
+    }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    /* ── Calendar tab ── */
+    #tab-calendar {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .calendar-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .agenda-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .agenda-toggle input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; }
+
+    .calendar-scroll {
+      flex: 1;
+      overflow-x: auto;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    /* Agenda mode: single column */
+    .calendar-scroll.agenda-mode {
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+    .calendar-scroll.agenda-mode .day-col {
+      width: 100%;
+      min-width: unset;
+      max-width: 600px;
+    }
+
+    .day-col {
+      flex-shrink: 0;
+      width: 160px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .day-header {
+      text-align: center;
+      padding: 8px 4px;
+      border-radius: 10px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .day-header .day-name { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; }
+    .day-header .day-num  { font-size: 22px; font-weight: 800; }
+    .day-header .day-month { font-size: 12px; color: var(--muted); }
+    .day-header.today { background: var(--primary); color: #fff; }
+    .day-header.today .day-name,
+    .day-header.today .day-month { color: rgba(255,255,255,.8); }
+
+    .item-pill {
+      border-radius: 10px;
+      padding: 8px 10px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      line-height: 1.3;
+      transition: opacity .1s;
+    }
+    .item-pill:active { opacity: .8; }
+    .item-pill .pill-time { font-size: 11px; opacity: .85; margin-bottom: 2px; }
+    .item-pill .pill-title { word-break: break-word; }
+    .item-pill .pill-loc { font-size: 11px; opacity: .8; margin-top: 2px; }
+
+    .item-pill[data-type=flight]     { background: var(--flight); }
+    .item-pill[data-type=hotel]      { background: var(--hotel); }
+    .item-pill[data-type=restaurant] { background: var(--restaurant); }
+    .item-pill[data-type=activity]   { background: var(--activity); }
+    .item-pill[data-type=ticket]     { background: var(--ticket); }
+    .item-pill[data-type=note]       { background: var(--note); }
+
+    .day-empty { font-size: 12px; color: var(--muted); text-align: center; padding: 8px 0; }
+
+    .no-dates-msg {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--muted);
+      text-align: center;
+      padding: 24px;
+    }
+    .no-dates-msg .big-icon { font-size: 48px; }
+
+    /* ── Chat tab ── */
+    #tab-chat {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #tab-chat.active { display: flex; }
+    #tab-calendar.active { display: flex; }
+
+    .messages-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .msg {
+      max-width: 80%;
+      padding: 10px 14px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .msg.user {
+      align-self: flex-end;
+      background: var(--primary);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .msg.assistant {
+      align-self: flex-start;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      border-bottom-left-radius: 4px;
+    }
+    .msg.typing {
+      align-self: flex-start;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      border-bottom-left-radius: 4px;
+      display: flex; align-items: center; gap: 8px;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    /* mutation pills in chat */
+    .mutation-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+      margin: 4px 0;
+    }
+    .mutation-pill[data-type=flight]     { background: var(--flight); }
+    .mutation-pill[data-type=hotel]      { background: var(--hotel); }
+    .mutation-pill[data-type=restaurant] { background: var(--restaurant); }
+    .mutation-pill[data-type=activity]   { background: var(--activity); }
+    .mutation-pill[data-type=ticket]     { background: var(--ticket); }
+    .mutation-pill[data-type=note]       { background: var(--note); }
+
+    .chat-input-bar {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      padding: 10px 16px;
+      padding-bottom: calc(10px + env(safe-area-inset-bottom));
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      position: sticky;
+      bottom: 0;
+    }
+    .chat-input-bar textarea {
+      flex: 1;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 10px 14px;
+      resize: none;
+      max-height: 120px;
+      overflow-y: auto;
+      outline: none;
+      background: var(--bg);
+      font-size: 15px;
+      line-height: 1.4;
+      transition: border-color .15s;
+    }
+    .chat-input-bar textarea:focus { border-color: var(--primary); }
+    .chat-send-btn {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+      transition: background .15s;
+    }
+    .chat-send-btn:hover { background: var(--primary-dark); }
+    .chat-send-btn:disabled { background: var(--border); }
+
+    /* Item detail modal */
+    .item-detail {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .item-detail-type {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .item-detail-title { font-size: 20px; font-weight: 800; }
+    .item-detail-row {
+      display: flex; gap: 8px; align-items: flex-start;
+      font-size: 14px;
+    }
+    .item-detail-row .icon { font-size: 16px; flex-shrink: 0; width: 22px; text-align: center; margin-top: 1px; }
+    .item-detail-row .val { color: var(--text); }
+    .item-detail-row a.val { color: var(--primary); word-break: break-all; }
+
+    /* Invite banner */
+    .invite-banner {
+      margin: 0 16px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      font-size: 13px;
+      color: #1e40af;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .invite-banner.hidden { display: none; }
+
+    /* Legend */
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 8px 12px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .legend-dot {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 11px; color: var(--muted);
+    }
+    .legend-dot::before {
+      content: '';
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .legend-dot.flight::before     { background: var(--flight); }
+    .legend-dot.hotel::before      { background: var(--hotel); }
+    .legend-dot.restaurant::before { background: var(--restaurant); }
+    .legend-dot.activity::before   { background: var(--activity); }
+    .legend-dot.ticket::before     { background: var(--ticket); }
+    .legend-dot.note::before       { background: var(--note); }
+
+    /* ── Responsive ── */
+    @media (min-width: 640px) {
+      .modal { border-radius: 20px; align-self: center; margin-bottom: 0; }
+      .modal-backdrop { align-items: center; }
+      .day-col { width: 180px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     VIEW: AUTH
+═══════════════════════════════════════════════════════════ -->
+<div id="view-auth" class="view active">
+  <div class="auth-box card">
+    <div class="auth-logo">
+      <div class="logo-icon">✈️</div>
+      <h1>FamilyApp</h1>
+      <p>Planea tus viajes en familia</p>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">Iniciar sesión</button>
+      <button class="auth-tab" onclick="switchAuthTab('register')">Crear cuenta</button>
+    </div>
+
+    <form class="auth-form" onsubmit="handleAuth(event)">
+      <div class="field" id="field-name" style="display:none">
+        <label>Tu nombre</label>
+        <input id="auth-name" type="text" placeholder="Ej. Iskra">
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input id="auth-email" type="email" placeholder="tu@email.com" required>
+      </div>
+      <div class="field">
+        <label>Contraseña</label>
+        <input id="auth-password" type="password" placeholder="Mínimo 6 caracteres" required minlength="6">
+      </div>
+      <div id="auth-error" class="auth-error hidden"></div>
+      <button type="submit" class="btn btn-primary" id="auth-submit-btn">Iniciar sesión</button>
+    </form>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     VIEW: TRIPS LIST
+═══════════════════════════════════════════════════════════ -->
+<div id="view-trips" class="view">
+  <div class="topbar">
+    <h1>✈️ Mis Viajes</h1>
+    <button class="btn btn-ghost btn-sm" onclick="handleSignOut()">Salir</button>
+  </div>
+
+  <div id="invite-banner" class="invite-banner hidden">
+    <span>📨</span>
+    <span id="invite-banner-text"></span>
+  </div>
+
+  <div class="trips-list" id="trips-list">
+    <div style="color: var(--muted); text-align:center; padding: 32px 0;">Cargando viajes...</div>
+  </div>
+
+  <button class="btn btn-primary new-trip-btn" onclick="openNewTripModal()">+ Nuevo viaje</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     VIEW: TRIP DETAIL
+═══════════════════════════════════════════════════════════ -->
+<div id="view-trip" class="view">
+  <div class="topbar">
+    <button class="back-btn" onclick="goToTrips()">←</button>
+    <h1 id="trip-title">Viaje</h1>
+    <button class="btn btn-ghost btn-sm" onclick="openInviteModal()">+ Invitar</button>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('calendar')">📅 Calendario</button>
+    <button class="tab-btn" onclick="switchTab('chat')">💬 Chat IA</button>
+  </div>
+
+  <!-- Calendar -->
+  <div id="tab-calendar" class="active">
+    <div class="legend">
+      <span class="legend-dot flight">Vuelo</span>
+      <span class="legend-dot hotel">Hotel</span>
+      <span class="legend-dot restaurant">Restaurante</span>
+      <span class="legend-dot activity">Actividad</span>
+      <span class="legend-dot ticket">Entrada</span>
+      <span class="legend-dot note">Nota</span>
+    </div>
+    <div class="calendar-toolbar">
+      <label class="agenda-toggle">
+        <input type="checkbox" id="agenda-toggle" onchange="toggleAgenda()">
+        Solo hoy
+      </label>
+      <button class="btn btn-ghost btn-sm" onclick="openSetDatesModal()">✏️ Fechas</button>
+    </div>
+    <div id="calendar-scroll" class="calendar-scroll">
+      <div class="no-dates-msg">
+        <div class="big-icon">🗓️</div>
+        <p>Aún no hay fechas para este viaje.</p>
+        <button class="btn btn-primary btn-sm" onclick="openSetDatesModal()">Añadir fechas</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat -->
+  <div id="tab-chat">
+    <div class="messages-list" id="messages-list"></div>
+    <div class="chat-input-bar">
+      <textarea
+        id="chat-input"
+        placeholder="Escribe o pega texto... p.ej. &quot;añade vuelo LH714 Munich Tokio 14 junio&quot;"
+        rows="1"
+        onkeydown="handleChatKey(event)"
+        oninput="autoResize(this)"
+      ></textarea>
+      <button class="chat-send-btn" id="chat-send-btn" onclick="sendMessage()" title="Enviar">
+        ➤
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODALS
+═══════════════════════════════════════════════════════════ -->
+
+<!-- New Trip Modal -->
+<div id="modal-new-trip" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal-title">Nuevo viaje</div>
+    <div class="field">
+      <label>Nombre del viaje</label>
+      <input id="new-trip-name" type="text" placeholder="Ej. Japón Junio 2026">
+    </div>
+    <div class="field">
+      <label>Destino (opcional)</label>
+      <input id="new-trip-dest" type="text" placeholder="Ej. Tokio, Kyoto, Osaka">
+    </div>
+    <div class="field">
+      <label>Fecha de inicio (opcional)</label>
+      <input id="new-trip-start" type="date">
+    </div>
+    <div class="field">
+      <label>Fecha de vuelta (opcional)</label>
+      <input id="new-trip-end" type="date">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-new-trip')">Cancelar</button>
+      <button class="btn btn-primary" onclick="createTrip()">Crear viaje</button>
+    </div>
+  </div>
+</div>
+
+<!-- Set Dates Modal -->
+<div id="modal-set-dates" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal-title">Fechas del viaje</div>
+    <div class="field">
+      <label>Fecha de salida</label>
+      <input id="set-start-date" type="date">
+    </div>
+    <div class="field">
+      <label>Fecha de vuelta</label>
+      <input id="set-end-date" type="date">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-set-dates')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveTripDates()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Invite Modal -->
+<div id="modal-invite" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal-title">Invitar a la familia</div>
+    <p style="font-size:14px; color:var(--muted);">
+      Comparte este enlace con quien quieras añadir al viaje.
+      Tendrán que crear una cuenta si no la tienen.
+    </p>
+    <div class="field">
+      <label>Enlace de invitación</label>
+      <input id="invite-link" type="text" readonly onclick="this.select()">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-invite')">Cerrar</button>
+      <button class="btn btn-primary" onclick="copyInviteLink()">Copiar enlace</button>
+    </div>
+  </div>
+</div>
+
+<!-- Item Detail Modal -->
+<div id="modal-item" class="modal-backdrop hidden" onclick="handleBackdropClick(event,'modal-item')">
+  <div class="modal" id="modal-item-content">
+    <!-- filled dynamically -->
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════════════════════ -->
+<script type="module">
+// ─── Config ───────────────────────────────────────────────────────────────────
+// TODO: Replace these with your actual Supabase project values from
+//       https://supabase.com/dashboard → Settings → API
+const SUPABASE_URL  = 'https://dbyrnyqdzdbodhkzdlfs.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRieXJueXFkemRib2Roa3pkbGZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1OTg3NzUsImV4cCI6MjA5MTE3NDc3NX0.KgAmDgZtZgnodpeJVeh_ZBbJr7kcs3AXLtgCj7sLgu8';
+
+// ─── Supabase client (CDN) ────────────────────────────────────────────────────
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ─── App state ────────────────────────────────────────────────────────────────
+let currentUser  = null;
+let currentTrip  = null;
+let tripItems    = [];
+let chatHistory  = [];
+let realtimeChan = null;
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) {
+    currentUser = session.user;
+    await checkPendingJoin();
+    await showTrips();
+  } else {
+    showView('view-auth');
+    await checkPendingJoin();   // store join param before login
+  }
+}
+
+// ─── Auth helpers ─────────────────────────────────────────────────────────────
+window.switchAuthTab = (tab) => {
+  document.querySelectorAll('.auth-tab').forEach((el, i) => {
+    el.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'register'));
+  });
+  document.getElementById('field-name').style.display = tab === 'register' ? 'flex' : 'none';
+  document.getElementById('auth-submit-btn').textContent =
+    tab === 'login' ? 'Iniciar sesión' : 'Crear cuenta';
+  document.getElementById('auth-error').classList.add('hidden');
+};
+
+window.handleAuth = async (e) => {
+  e.preventDefault();
+  const email    = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const isLogin  = document.getElementById('auth-submit-btn').textContent.startsWith('Iniciar');
+  const errEl    = document.getElementById('auth-error');
+  errEl.classList.add('hidden');
+
+  let error;
+  if (isLogin) {
+    ({ error } = await sb.auth.signInWithPassword({ email, password }));
+  } else {
+    const name = document.getElementById('auth-name').value.trim();
+    ({ error } = await sb.auth.signUp({
+      email, password,
+      options: { data: { display_name: name } },
+    }));
+    if (!error) {
+      // Supabase email confirmation is disabled, session is immediate
+    }
+  }
+
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  const { data: { session } } = await sb.auth.getSession();
+  currentUser = session?.user;
+  if (currentUser) {
+    await checkPendingJoin();
+    await showTrips();
+  }
+};
+
+window.handleSignOut = async () => {
+  unsubscribeRealtime();
+  await sb.auth.signOut();
+  currentUser = currentTrip = null;
+  tripItems = []; chatHistory = [];
+  showView('view-auth');
+};
+
+// ─── View helpers ─────────────────────────────────────────────────────────────
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+window.switchTab = (tab) => {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    b.classList.toggle('active', (i === 0 && tab === 'calendar') || (i === 1 && tab === 'chat'));
+  });
+  document.getElementById('tab-calendar').classList.toggle('active', tab === 'calendar');
+  document.getElementById('tab-chat').classList.toggle('active', tab === 'chat');
+  if (tab === 'chat') scrollMessagesToBottom();
+};
+
+function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+window.closeModal = closeModal;
+
+window.handleBackdropClick = (e, id) => {
+  if (e.target.id === id) closeModal(id);
+};
+
+// ─── Trips view ───────────────────────────────────────────────────────────────
+async function showTrips() {
+  showView('view-trips');
+  await loadTrips();
+}
+
+async function loadTrips() {
+  const { data: memberships } = await sb
+    .from('trip_members')
+    .select('trip_id, role')
+    .eq('user_id', currentUser.id);
+
+  if (!memberships?.length) {
+    document.getElementById('trips-list').innerHTML =
+      '<div style="color:var(--muted);text-align:center;padding:40px 0">Aún no tienes ningún viaje.<br>¡Crea el primero!</div>';
+    return;
+  }
+
+  const tripIds = memberships.map(m => m.trip_id);
+  const { data: trips } = await sb
+    .from('trips')
+    .select('*')
+    .in('id', tripIds)
+    .order('start_date', { ascending: true });
+
+  const { data: allMembers } = await sb
+    .from('trip_members')
+    .select('trip_id, user_id')
+    .in('trip_id', tripIds);
+
+  const memberCountByTrip = {};
+  (allMembers || []).forEach(m => {
+    memberCountByTrip[m.trip_id] = (memberCountByTrip[m.trip_id] || 0) + 1;
+  });
+
+  const EMOJIS = ['✈️','🗺️','🏖️','🗻','🏯','🌍','🗽','🎌','🍜','🎡'];
+  const html = (trips || []).map((t, i) => {
+    const emoji = EMOJIS[i % EMOJIS.length];
+    const dates = t.start_date && t.end_date
+      ? `${formatDate(t.start_date)} – ${formatDate(t.end_date)}`
+      : 'Fechas por definir';
+    const mc = memberCountByTrip[t.id] || 1;
+    const members = mc === 1 ? 'Solo tú' : `${mc} miembros`;
+    return `
+      <div class="trip-card" onclick="openTrip('${t.id}')">
+        <div class="trip-card-emoji">${emoji}</div>
+        <div class="trip-card-info">
+          <div class="trip-card-name">${esc(t.name)}</div>
+          <div class="trip-card-dates">${dates}</div>
+          <div class="trip-card-members">👥 ${members}</div>
+        </div>
+        <span style="color:var(--muted);font-size:18px">›</span>
+      </div>`;
+  }).join('');
+
+  document.getElementById('trips-list').innerHTML = html ||
+    '<div style="color:var(--muted);text-align:center;padding:40px 0">Aún no tienes ningún viaje.</div>';
+}
+
+window.openNewTripModal = () => {
+  document.getElementById('new-trip-name').value = '';
+  document.getElementById('new-trip-dest').value = '';
+  document.getElementById('new-trip-start').value = '';
+  document.getElementById('new-trip-end').value = '';
+  openModal('modal-new-trip');
+};
+
+window.createTrip = async () => {
+  const name      = document.getElementById('new-trip-name').value.trim();
+  const dest      = document.getElementById('new-trip-dest').value.trim();
+  const startDate = document.getElementById('new-trip-start').value;
+  const endDate   = document.getElementById('new-trip-end').value;
+
+  if (!name) { alert('Escribe un nombre para el viaje.'); return; }
+
+  const { data: trip, error } = await sb.from('trips').insert({
+    name,
+    destination: dest || null,
+    start_date: startDate || null,
+    end_date: endDate || null,
+    created_by: currentUser.id,
+  }).select().single();
+
+  if (error) { alert('Error: ' + error.message); return; }
+
+  await sb.from('trip_members').insert({
+    trip_id: trip.id,
+    user_id: currentUser.id,
+    role: 'owner',
+    display_name: currentUser.user_metadata?.display_name || currentUser.email,
+  });
+
+  closeModal('modal-new-trip');
+  await openTrip(trip.id);
+};
+
+// ─── Trip Detail ──────────────────────────────────────────────────────────────
+window.openTrip = async (tripId) => {
+  unsubscribeRealtime();
+
+  const { data: trip } = await sb.from('trips').select('*').eq('id', tripId).single();
+  currentTrip = trip;
+  tripItems   = [];
+  chatHistory = [];
+
+  document.getElementById('trip-title').textContent = trip.name;
+  document.getElementById('set-start-date').value = trip.start_date || '';
+  document.getElementById('set-end-date').value   = trip.end_date   || '';
+  document.getElementById('invite-link').value =
+    `${location.origin}${location.pathname}?join=${tripId}`;
+
+  showView('view-trip');
+  switchTab('calendar');
+
+  await loadItems();
+  renderCalendar();
+  await loadChatHistory();
+  subscribeRealtime();
+};
+
+window.goToTrips = () => {
+  unsubscribeRealtime();
+  showTrips();
+};
+
+// ─── Items ────────────────────────────────────────────────────────────────────
+async function loadItems() {
+  const { data } = await sb
+    .from('trip_items')
+    .select('*')
+    .eq('trip_id', currentTrip.id)
+    .order('date', { ascending: true })
+    .order('start_time', { ascending: true });
+  tripItems = data || [];
+}
+
+// ─── Calendar rendering ───────────────────────────────────────────────────────
+function renderCalendar() {
+  const scroll = document.getElementById('calendar-scroll');
+  const agendaOn = document.getElementById('agenda-toggle').checked;
+
+  if (!currentTrip?.start_date || !currentTrip?.end_date) {
+    scroll.innerHTML = `
+      <div class="no-dates-msg">
+        <div class="big-icon">🗓️</div>
+        <p>Aún no hay fechas para este viaje.</p>
+        <button class="btn btn-primary btn-sm" onclick="openSetDatesModal()">Añadir fechas</button>
+      </div>`;
+    return;
+  }
+
+  const today     = todayISO();
+  const days      = getDaysBetween(currentTrip.start_date, currentTrip.end_date);
+  const daysToShow = agendaOn ? days.filter(d => d === today) : days;
+
+  scroll.className = agendaOn ? 'calendar-scroll agenda-mode' : 'calendar-scroll';
+
+  if (agendaOn && daysToShow.length === 0) {
+    scroll.innerHTML = `
+      <div class="no-dates-msg">
+        <div class="big-icon">📋</div>
+        <p>Hoy no está dentro del viaje.</p>
+      </div>`;
+    return;
+  }
+
+  scroll.innerHTML = daysToShow.map(dateStr => renderDayCol(dateStr, today)).join('');
+}
+
+function renderDayCol(dateStr, today) {
+  const d    = new Date(dateStr + 'T00:00:00');
+  const isToday = dateStr === today;
+  const dayNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const monthNames = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+  const items = tripItems.filter(it => it.date === dateStr);
+  const pillsHtml = items.map(it => `
+    <div class="item-pill" data-type="${it.type}" onclick="showItemDetail('${it.id}')">
+      ${it.start_time ? `<div class="pill-time">${it.start_time.slice(0,5)}</div>` : ''}
+      <div class="pill-title">${esc(it.title)}</div>
+      ${it.location ? `<div class="pill-loc">📍 ${esc(it.location)}</div>` : ''}
+    </div>`).join('');
+
+  return `
+    <div class="day-col">
+      <div class="day-header${isToday ? ' today' : ''}">
+        <div class="day-name">${dayNames[d.getDay()]}</div>
+        <div class="day-num">${d.getDate()}</div>
+        <div class="day-month">${monthNames[d.getMonth()]}</div>
+      </div>
+      ${pillsHtml || '<div class="day-empty">—</div>'}
+    </div>`;
+}
+
+window.toggleAgenda = () => renderCalendar();
+
+window.openSetDatesModal = () => openModal('modal-set-dates');
+
+window.saveTripDates = async () => {
+  const start = document.getElementById('set-start-date').value;
+  const end   = document.getElementById('set-end-date').value;
+  if (!start || !end) { alert('Selecciona ambas fechas.'); return; }
+  if (start > end) { alert('La fecha de salida debe ser antes de la vuelta.'); return; }
+
+  const { error } = await sb.from('trips')
+    .update({ start_date: start, end_date: end })
+    .eq('id', currentTrip.id);
+
+  if (error) { alert('Error: ' + error.message); return; }
+
+  currentTrip.start_date = start;
+  currentTrip.end_date   = end;
+  closeModal('modal-set-dates');
+  renderCalendar();
+};
+
+// ─── Item detail modal ────────────────────────────────────────────────────────
+window.showItemDetail = (itemId) => {
+  const it = tripItems.find(i => i.id === itemId);
+  if (!it) return;
+
+  const TYPE_LABELS = {
+    flight: '✈️ Vuelo', hotel: '🏨 Hotel', restaurant: '🍽️ Restaurante',
+    activity: '🎯 Actividad', ticket: '🎟️ Entrada', note: '📝 Nota',
+  };
+
+  const rows = [];
+  if (it.date)       rows.push(`<div class="item-detail-row"><span class="icon">📅</span><span class="val">${formatDate(it.date)}${it.start_time ? ' · ' + it.start_time.slice(0,5) : ''}${it.end_time ? ' – ' + it.end_time.slice(0,5) : ''}</span></div>`);
+  if (it.location)   rows.push(`<div class="item-detail-row"><span class="icon">📍</span><span class="val">${esc(it.location)}</span></div>`);
+  if (it.origin && it.destination) rows.push(`<div class="item-detail-row"><span class="icon">🛫</span><span class="val">${esc(it.origin)} → ${esc(it.destination)}${it.flight_num ? ' · ' + esc(it.flight_num) : ''}${it.airline ? ' · ' + esc(it.airline) : ''}</span></div>`);
+  if (it.check_in)   rows.push(`<div class="item-detail-row"><span class="icon">📆</span><span class="val">Check-in: ${formatDate(it.check_in)} · Check-out: ${formatDate(it.check_out)}</span></div>`);
+  if (it.notes)      rows.push(`<div class="item-detail-row"><span class="icon">📋</span><span class="val">${esc(it.notes).replace(/\n/g,'<br>')}</span></div>`);
+  if (it.url)        rows.push(`<div class="item-detail-row"><span class="icon">🔗</span><a class="val" href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.url)}</a></div>`);
+
+  document.getElementById('modal-item-content').innerHTML = `
+    <div class="item-detail">
+      <span class="item-detail-type" style="background:var(--${it.type})">${TYPE_LABELS[it.type] || it.type}</span>
+      <div class="item-detail-title">${esc(it.title)}</div>
+      ${rows.join('')}
+      <div class="modal-actions" style="margin-top:8px">
+        <button class="btn btn-ghost" onclick="closeModal('modal-item')">Cerrar</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteItem('${it.id}')">Eliminar</button>
+      </div>
+    </div>`;
+  openModal('modal-item');
+};
+
+window.deleteItem = async (itemId) => {
+  if (!confirm('¿Eliminar este item?')) return;
+  await sb.from('trip_items').delete().eq('id', itemId).eq('trip_id', currentTrip.id);
+  tripItems = tripItems.filter(i => i.id !== itemId);
+  closeModal('modal-item');
+  renderCalendar();
+};
+
+// ─── Invite ───────────────────────────────────────────────────────────────────
+window.openInviteModal  = () => openModal('modal-invite');
+window.copyInviteLink   = () => {
+  navigator.clipboard.writeText(document.getElementById('invite-link').value);
+  alert('¡Enlace copiado! Compártelo con tu familia.');
+};
+
+// ─── Chat ─────────────────────────────────────────────────────────────────────
+async function loadChatHistory() {
+  const { data } = await sb
+    .from('chat_messages')
+    .select('role, content')
+    .eq('trip_id', currentTrip.id)
+    .order('created_at', { ascending: true })
+    .limit(50);
+
+  chatHistory = (data || []).map(m => ({ role: m.role, content: m.content }));
+
+  const list = document.getElementById('messages-list');
+  list.innerHTML = '';
+
+  if (!chatHistory.length) {
+    appendMsg('assistant',
+      `¡Hola! Soy tu asistente para el viaje "${currentTrip.name}". ` +
+      `Puedes decirme cosas como:\n` +
+      `• "Añade vuelo LH714 Munich Tokio el 14 de junio"\n` +
+      `• "Reservamos el hotel Shinjuku Granbell del 15 al 18"\n` +
+      `• "¿Qué tenemos el día 20?"\n` +
+      `¡O pega directamente recomendaciones de amigos!`
+    );
+  } else {
+    chatHistory.forEach(m => appendMsg(m.role, m.content));
+    scrollMessagesToBottom();
+  }
+}
+
+function appendMsg(role, content, mutations = []) {
+  const list = document.getElementById('messages-list');
+  const div  = document.createElement('div');
+  div.className = `msg ${role}`;
+  div.textContent = content;
+
+  if (mutations.length) {
+    mutations.forEach(mut => {
+      if (mut.action === 'created' && mut.item) {
+        const pill = document.createElement('div');
+        pill.className = 'mutation-pill';
+        pill.dataset.type = mut.item.type;
+        pill.textContent = `+ ${mut.item.title}`;
+        list.appendChild(div);
+        list.appendChild(pill);
+        scrollMessagesToBottom();
+        return;
+      }
+    });
+  }
+
+  list.appendChild(div);
+  scrollMessagesToBottom();
+}
+
+function appendTyping() {
+  const list = document.getElementById('messages-list');
+  const div  = document.createElement('div');
+  div.className = 'msg typing';
+  div.id = 'typing-indicator';
+  div.innerHTML = '<div class="spinner"></div> Pensando...';
+  list.appendChild(div);
+  scrollMessagesToBottom();
+  return div;
+}
+
+function removeTyping() {
+  document.getElementById('typing-indicator')?.remove();
+}
+
+function scrollMessagesToBottom() {
+  const list = document.getElementById('messages-list');
+  list.scrollTop = list.scrollHeight;
+}
+
+window.handleChatKey = (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+};
+
+window.autoResize = (el) => {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+};
+
+window.sendMessage = async () => {
+  const input = document.getElementById('chat-input');
+  const text  = input.value.trim();
+  if (!text) return;
+
+  const sendBtn = document.getElementById('chat-send-btn');
+  sendBtn.disabled = true;
+  input.value = '';
+  input.style.height = 'auto';
+
+  // Show user message
+  chatHistory.push({ role: 'user', content: text });
+  appendMsg('user', text);
+
+  // Persist user message
+  await sb.from('chat_messages').insert({
+    trip_id: currentTrip.id,
+    role: 'user',
+    content: text,
+  });
+
+  // Show typing indicator
+  const typingEl = appendTyping();
+
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const token = session?.access_token;
+
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: chatHistory,
+        trip_id: currentTrip.id,
+        supabase_token: token,
+      }),
+    });
+
+    removeTyping();
+
+    if (!res.ok) {
+      const err = await res.json();
+      appendMsg('assistant', `Error: ${err.error || 'Algo ha fallado. Inténtalo de nuevo.'}`);
+      sendBtn.disabled = false;
+      return;
+    }
+
+    const { reply, mutations } = await res.json();
+
+    // Apply mutations to local state
+    if (mutations?.length) {
+      mutations.forEach(mut => {
+        if (mut.action === 'created' && mut.item) {
+          tripItems.push(mut.item);
+        } else if (mut.action === 'deleted' && mut.id) {
+          tripItems = tripItems.filter(i => i.id !== mut.id);
+        } else if (mut.action === 'trip_updated' && mut.fields) {
+          Object.assign(currentTrip, mut.fields);
+          if (mut.fields.start_date) document.getElementById('set-start-date').value = mut.fields.start_date;
+          if (mut.fields.end_date)   document.getElementById('set-end-date').value   = mut.fields.end_date;
+        }
+      });
+      renderCalendar();
+    }
+
+    // Show assistant reply
+    chatHistory.push({ role: 'assistant', content: reply });
+    appendMsg('assistant', reply, mutations || []);
+
+    // Persist assistant message
+    await sb.from('chat_messages').insert({
+      trip_id: currentTrip.id,
+      role: 'assistant',
+      content: reply,
+    });
+
+  } catch (err) {
+    removeTyping();
+    appendMsg('assistant', 'Error de conexión. Comprueba tu internet e inténtalo de nuevo.');
+    console.error(err);
+  }
+
+  sendBtn.disabled = false;
+};
+
+// ─── Realtime ─────────────────────────────────────────────────────────────────
+function subscribeRealtime() {
+  realtimeChan = sb.channel(`trip-${currentTrip.id}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'trip_items',
+      filter: `trip_id=eq.${currentTrip.id}`,
+    }, async () => {
+      await loadItems();
+      renderCalendar();
+    })
+    .subscribe();
+}
+
+function unsubscribeRealtime() {
+  if (realtimeChan) {
+    sb.removeChannel(realtimeChan);
+    realtimeChan = null;
+  }
+}
+
+// ─── Invite join flow ─────────────────────────────────────────────────────────
+async function checkPendingJoin() {
+  const params = new URLSearchParams(location.search);
+  const joinId = params.get('join');
+  if (!joinId) return;
+
+  // Store it in session storage in case user needs to log in first
+  sessionStorage.setItem('pendingJoin', joinId);
+
+  if (!currentUser) return;
+
+  const storedId = sessionStorage.getItem('pendingJoin');
+  if (!storedId) return;
+  sessionStorage.removeItem('pendingJoin');
+
+  // Check if already a member
+  const { data: existing } = await sb
+    .from('trip_members')
+    .select('user_id')
+    .eq('trip_id', storedId)
+    .eq('user_id', currentUser.id)
+    .maybeSingle();
+
+  if (!existing) {
+    await sb.from('trip_members').insert({
+      trip_id: storedId,
+      user_id: currentUser.id,
+      role: 'member',
+      display_name: currentUser.user_metadata?.display_name || currentUser.email,
+    });
+  }
+
+  // Clean URL and open the trip
+  history.replaceState({}, '', location.pathname);
+  const banner = document.getElementById('invite-banner');
+  const { data: trip } = await sb.from('trips').select('name').eq('id', storedId).single();
+  if (trip) {
+    banner.classList.remove('hidden');
+    document.getElementById('invite-banner-text').textContent =
+      `Te han añadido al viaje "${trip.name}". ¡Ya puedes verlo!`;
+  }
+  await openTrip(storedId);
+}
+
+// ─── Utils ────────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function todayISO() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function getDaysBetween(start, end) {
+  const days = [];
+  const cur  = new Date(start + 'T00:00:00');
+  const last = new Date(end   + 'T00:00:00');
+  while (cur <= last) {
+    days.push(cur.toISOString().split('T')[0]);
+    cur.setDate(cur.getDate() + 1);
+  }
+  return days;
+}
+
+// ─── Start ────────────────────────────────────────────────────────────────────
+init();
+</script>
+
+</body>
+</html>
