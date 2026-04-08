@@ -769,7 +769,9 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 
 // ─── Supabase client (CDN) ────────────────────────────────────────────────────
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON, {
+  auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: false },
+});
 
 // ─── App state ────────────────────────────────────────────────────────────────
 let currentUser  = null;
@@ -944,12 +946,20 @@ window.createTrip = async () => {
 
   if (!name) { alert('Escribe un nombre para el viaje.'); return; }
 
+  // Verify session is valid before writing
+  const { data: { user }, error: userErr } = await sb.auth.getUser();
+  if (userErr || !user) {
+    alert('Sesión expirada. Recarga la página e inicia sesión de nuevo.');
+    return;
+  }
+  currentUser = user;
+
   const { data: trip, error } = await sb.from('trips').insert({
     name,
     destination: dest || null,
     start_date: startDate || null,
     end_date: endDate || null,
-    created_by: currentUser.id,
+    created_by: user.id,
   }).select().single();
 
   if (error) { alert('Error: ' + error.message); return; }
