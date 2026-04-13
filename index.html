@@ -782,6 +782,17 @@ let realtimeChan = null;
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
+  // onAuthStateChange fires immediately with the current session
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (session?.user) {
+      currentUser = session.user;
+      if (document.getElementById('view-auth').classList.contains('active')) {
+        await checkPendingJoin();
+        await showTrips();
+      }
+    }
+  });
+
   const { data: { session } } = await sb.auth.getSession();
   if (session?.user) {
     currentUser = session.user;
@@ -789,7 +800,7 @@ async function init() {
     await showTrips();
   } else {
     showView('view-auth');
-    await checkPendingJoin();   // store join param before login
+    await checkPendingJoin();
   }
 }
 
@@ -946,9 +957,10 @@ window.createTrip = async () => {
 
   if (!name) { alert('Escribe un nombre para el viaje.'); return; }
 
-  // Verify session is valid before writing
-  const { data: { user }, error: userErr } = await sb.auth.getUser();
-  if (userErr || !user) {
+  // Refresh session to ensure token is valid before writing
+  const { data: refreshed } = await sb.auth.refreshSession();
+  const user = refreshed?.user ?? currentUser;
+  if (!user) {
     alert('Sesión expirada. Recarga la página e inicia sesión de nuevo.');
     return;
   }
