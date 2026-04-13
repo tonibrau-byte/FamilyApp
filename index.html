@@ -782,17 +782,6 @@ let realtimeChan = null;
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
-  // onAuthStateChange fires immediately with the current session
-  sb.auth.onAuthStateChange(async (event, session) => {
-    if (session?.user) {
-      currentUser = session.user;
-      if (document.getElementById('view-auth').classList.contains('active')) {
-        await checkPendingJoin();
-        await showTrips();
-      }
-    }
-  });
-
   const { data: { session } } = await sb.auth.getSession();
   if (session?.user) {
     currentUser = session.user;
@@ -957,21 +946,12 @@ window.createTrip = async () => {
 
   if (!name) { alert('Escribe un nombre para el viaje.'); return; }
 
-  // Refresh session to ensure token is valid before writing
-  const { data: refreshed } = await sb.auth.refreshSession();
-  const user = refreshed?.user ?? currentUser;
-  if (!user) {
-    alert('Sesión expirada. Recarga la página e inicia sesión de nuevo.');
-    return;
-  }
-  currentUser = user;
-
   const { data: trip, error } = await sb.from('trips').insert({
     name,
     destination: dest || null,
     start_date: startDate || null,
     end_date: endDate || null,
-    created_by: user.id,
+    created_by: currentUser.id,
   }).select().single();
 
   if (error) { alert('Error: ' + error.message); return; }
