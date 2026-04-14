@@ -920,7 +920,7 @@ async function loadTrips() {
           <div class="trip-card-dates">${dates}</div>
           <div class="trip-card-members">👥 ${members}</div>
         </div>
-        <span style="color:var(--muted);font-size:18px">›</span>
+        <button class="btn btn-danger btn-sm" style="flex-shrink:0" onclick="event.stopPropagation(); deleteTrip('${t.id}', '${esc(t.name)}')">🗑️</button>
       </div>`;
   }).join('');
 
@@ -958,6 +958,13 @@ window.createTrip = async () => {
 
   closeModal('modal-new-trip');
   await openTrip(trip.id);
+};
+
+window.deleteTrip = async (tripId, tripName) => {
+  if (!confirm(`¿Eliminar el viaje "${tripName}"? Se borrarán todos los datos.`)) return;
+  const { error } = await sb.from('trips').delete().eq('id', tripId).eq('created_by', currentUser.id);
+  if (error) { alert('Error: ' + error.message); return; }
+  await loadTrips();
 };
 
 // ─── Trip Detail ──────────────────────────────────────────────────────────────
