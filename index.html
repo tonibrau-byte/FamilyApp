@@ -1048,11 +1048,8 @@ window.createTrip = async () => {
     p_start_date: startDate || null,
     p_end_date: endDate || null,
     p_user_id: currentUser.id,
+    p_icon: icon,
   });
-
-  if (!error && newId) {
-    await sb.from('trips').update({ icon }).eq('id', newId);
-  }
 
   if (error) { alert('Error: ' + error.message); return; }
 
