@@ -1094,7 +1094,15 @@ function renderDayCol(dateStr, today) {
   const dayNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
   const monthNames = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
-  const items = tripItems.filter(it => it.date === dateStr);
+  const items = tripItems.filter(it => {
+    // Items with a specific date
+    if (it.date === dateStr) return true;
+    // Hotels: show on every day from check_in to check_out
+    if (it.type === 'hotel' && it.check_in && it.check_out) {
+      return dateStr >= it.check_in && dateStr <= it.check_out;
+    }
+    return false;
+  });
   const pillsHtml = items.map(it => `
     <div class="item-pill" data-type="${it.type}" onclick="showItemDetail('${it.id}')">
       ${it.start_time ? `<div class="pill-time">${it.start_time.slice(0,5)}</div>` : ''}

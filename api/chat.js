@@ -267,6 +267,8 @@ export default async function handler(req, res) {
     `- When the user asks a question about the itinerary, call query_items if needed, then answer conversationally.\n` +
     `- Always use YYYY-MM-DD for dates, HH:MM for times in tool calls.\n` +
     `- Infer the year from the trip dates when the user omits it.\n` +
+    `- For hotels: always set check_in and check_out, AND also set date = check_in.\n` +
+    `- For flights: set date to the departure date.\n` +
     `- Respond in the same language the user writes in.`;
 
   // 4. Agentic loop
