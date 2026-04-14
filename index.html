@@ -1472,15 +1472,20 @@ window.sendMessage = async () => {
 
 // ─── Realtime ─────────────────────────────────────────────────────────────────
 function subscribeRealtime() {
+  let reloadTimer = null;
   realtimeChan = sb.channel(`trip-${currentTrip.id}`)
     .on('postgres_changes', {
       event: '*',
       schema: 'public',
       table: 'trip_items',
       filter: `trip_id=eq.${currentTrip.id}`,
-    }, async () => {
-      await loadItems();
-      renderCalendar();
+    }, () => {
+      // Debounce: wait 600ms so rapid consecutive events collapse into one reload
+      clearTimeout(reloadTimer);
+      reloadTimer = setTimeout(async () => {
+        await loadItems();
+        renderCalendar();
+      }, 600);
     })
     .subscribe();
 }
