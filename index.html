@@ -944,28 +944,17 @@ window.createTrip = async () => {
 
   if (!name) { alert('Escribe un nombre para el viaje.'); return; }
 
-  const { data: { session: dbgSession } } = await sb.auth.getSession();
-  if (!dbgSession) {
-    alert('Sin sesión activa. Por favor cierra sesión, vuelve a entrar e inténtalo de nuevo.');
-    return;
-  }
-
-  const { data: trip, error } = await sb.from('trips').insert({
-    name,
-    destination: dest || null,
-    start_date: startDate || null,
-    end_date: endDate || null,
-    created_by: currentUser.id,
-  }).select().single();
+  const { data: newId, error } = await sb.rpc('create_trip', {
+    p_name: name,
+    p_destination: dest || null,
+    p_start_date: startDate || null,
+    p_end_date: endDate || null,
+    p_user_id: currentUser.id,
+  });
 
   if (error) { alert('Error: ' + error.message); return; }
 
-  await sb.from('trip_members').insert({
-    trip_id: trip.id,
-    user_id: currentUser.id,
-    role: 'owner',
-    display_name: currentUser.user_metadata?.display_name || currentUser.email,
-  });
+  const trip = { id: newId };
 
   closeModal('modal-new-trip');
   await openTrip(trip.id);
