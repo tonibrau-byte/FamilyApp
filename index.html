@@ -1408,11 +1408,16 @@ window.sendMessage = async () => {
     const { data: { session } } = await sb.auth.getSession();
     const token = session?.access_token;
 
+    // Send only text-based messages (no file blobs in history) and cap at 20
+    const safeHistory = chatHistory
+      .filter(m => typeof m.content === 'string')
+      .slice(-20);
+
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        messages: chatHistory,
+        messages: safeHistory,
         trip_id: currentTrip.id,
         supabase_token: token,
       }),

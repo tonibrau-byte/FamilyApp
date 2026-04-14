@@ -269,6 +269,7 @@ export default async function handler(req, res) {
     `- Infer the year from the trip dates when the user omits it.\n` +
     `- For hotels: always set check_in and check_out, AND also set date = check_in.\n` +
     `- For flights: set date to the departure date.\n` +
+    `- IMPORTANT: Never call create_item more than once for the same item in a single response. Check the current items list above before creating — if the item already exists, use update_item instead.\n` +
     `- Respond in the same language the user writes in.`;
 
   // 4. Agentic loop
