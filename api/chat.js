@@ -7,7 +7,7 @@ const ANTHROPIC_API_KEY  = process.env.ANTHROPIC_API_KEY;
 const SUPABASE_URL        = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
-const CLAUDE_MODEL = 'claude-haiku-4-5-20251001';
+const CLAUDE_MODEL = 'claude-sonnet-4-6';
 const MAX_TOOL_LOOPS = 10;
 
 // ─── Tool definitions ─────────────────────────────────────────────────────────
@@ -286,7 +286,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: CLAUDE_MODEL,
-        max_tokens: 1024,
+        max_tokens: 4096,
         system: systemPrompt,
         tools: TOOLS,
         messages: conversation,

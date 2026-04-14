@@ -490,6 +490,19 @@
     .chat-send-btn:hover { background: var(--primary-dark); }
     .chat-send-btn:disabled { background: var(--border); }
 
+    .chat-attach-btn {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .chat-attach-btn:hover { background: var(--border); }
+
     /* Item detail modal */
     .item-detail {
       display: flex;
@@ -667,13 +680,23 @@
   <div id="tab-chat">
     <div class="messages-list" id="messages-list"></div>
     <div class="chat-input-bar">
-      <textarea
-        id="chat-input"
-        placeholder="Escribe o pega texto... p.ej. &quot;añade vuelo LH714 Munich Tokio 14 junio&quot;"
-        rows="1"
-        onkeydown="handleChatKey(event)"
-        oninput="autoResize(this)"
-      ></textarea>
+      <label class="chat-attach-btn" title="Adjuntar documento o imagen">
+        📎
+        <input type="file" id="file-input" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp" style="display:none" onchange="handleFileAttach(event)">
+      </label>
+      <div style="flex:1; display:flex; flex-direction:column; gap:4px;">
+        <div id="file-preview" class="hidden" style="font-size:12px; color:var(--primary); padding: 2px 4px; background:#eff6ff; border-radius:6px; display:flex; align-items:center; gap:6px;">
+          <span id="file-preview-name"></span>
+          <button onclick="removeAttachment()" style="color:var(--danger); font-size:14px; line-height:1;">×</button>
+        </div>
+        <textarea
+          id="chat-input"
+          placeholder="Escribe, pega texto o adjunta un PDF/imagen de tu reserva..."
+          rows="1"
+          onkeydown="handleChatKey(event)"
+          oninput="autoResize(this)"
+        ></textarea>
+      </div>
       <button class="chat-send-btn" id="chat-send-btn" onclick="sendMessage()" title="Enviar">
         ➤
       </button>
@@ -1219,29 +1242,75 @@ window.autoResize = (el) => {
   el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 };
 
+// ─── File attachment state ────────────────────────────────────────────────────
+let pendingFile = null;  // { name, mediaType, base64, isPdf }
+
+window.handleFileAttach = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const isPdf = file.type === 'application/pdf';
+  const isImage = file.type.startsWith('image/');
+  if (!isPdf && !isImage) { alert('Solo se aceptan PDF e imágenes.'); return; }
+
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const base64 = ev.target.result.split(',')[1];
+    pendingFile = { name: file.name, mediaType: file.type, base64, isPdf };
+    document.getElementById('file-preview').classList.remove('hidden');
+    document.getElementById('file-preview-name').textContent = `📄 ${file.name}`;
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+};
+
+window.removeAttachment = () => {
+  pendingFile = null;
+  document.getElementById('file-preview').classList.add('hidden');
+  document.getElementById('file-preview-name').textContent = '';
+};
+
 window.sendMessage = async () => {
   const input = document.getElementById('chat-input');
   const text  = input.value.trim();
-  if (!text) return;
+  if (!text && !pendingFile) return;
 
   const sendBtn = document.getElementById('chat-send-btn');
   sendBtn.disabled = true;
+
+  const userText = text || (pendingFile ? `[Documento adjunto: ${pendingFile.name}]` : '');
+  const fileToSend = pendingFile;
+
   input.value = '';
   input.style.height = 'auto';
+  removeAttachment();
 
-  // Show user message
-  chatHistory.push({ role: 'user', content: text });
-  appendMsg('user', text);
+  // Build message content for Claude (may include file)
+  let userContent;
+  if (fileToSend) {
+    userContent = [
+      fileToSend.isPdf
+        ? { type: 'document', source: { type: 'base64', media_type: fileToSend.mediaType, data: fileToSend.base64 } }
+        : { type: 'image', source: { type: 'base64', media_type: fileToSend.mediaType, data: fileToSend.base64 } },
+      { type: 'text', text: text || 'Lee este documento y extrae toda la información relevante del viaje (vuelos, hoteles, fechas, horarios, confirmaciones) y añádela al itinerario.' },
+    ];
+  } else {
+    userContent = text;
+  }
 
-  // Persist user message
+  // Show user message in UI (always as text)
+  chatHistory.push({ role: 'user', content: userContent });
+  appendMsg('user', userText);
+
+  // Persist user message (text only)
   await sb.from('chat_messages').insert({
     trip_id: currentTrip.id,
     role: 'user',
-    content: text,
+    content: userText,
   });
 
   // Show typing indicator
-  const typingEl = appendTyping();
+  appendTyping();
 
   try {
     const { data: { session } } = await sb.auth.getSession();
