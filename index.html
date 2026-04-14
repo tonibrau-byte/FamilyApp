@@ -591,6 +591,24 @@
     .legend-dot.ticket::before     { background: var(--ticket); }
     .legend-dot.note::before       { background: var(--note); }
 
+    /* ── Emoji picker ── */
+    .emoji-picker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .emoji-opt {
+      font-size: 24px;
+      width: 40px; height: 40px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border-color .15s, background .15s;
+    }
+    .emoji-opt:hover { background: var(--bg); }
+    .emoji-opt.selected { border-color: var(--primary); background: #eff6ff; }
+
     /* ── Responsive ── */
     @media (min-width: 640px) {
       .modal { border-radius: 20px; align-self: center; margin-bottom: 0; }
@@ -641,7 +659,7 @@
 ═══════════════════════════════════════════════════════════ -->
 <div id="view-trips" class="view">
   <div class="topbar">
-    <h1>✈️ Mis Viajes</h1>
+    <h1 id="app-title" onclick="changeAppIcon()" style="cursor:pointer" title="Pulsa para cambiar el icono">✈️ Los viajes de los Braus</h1>
     <button class="btn btn-ghost btn-sm" onclick="handleSignOut()">Salir</button>
   </div>
 
@@ -737,6 +755,31 @@
 <div id="modal-new-trip" class="modal-backdrop hidden">
   <div class="modal">
     <div class="modal-title">Nuevo viaje</div>
+    <div class="field">
+      <label>Icono del viaje</label>
+      <div id="emoji-picker" class="emoji-picker">
+        <span class="emoji-opt selected" onclick="selectTripEmoji(this)">✈️</span>
+        <span class="emoji-opt" onclick="selectTripEmoji(this)">🗺️</span>
+        <span class="emoji-opt" onclick="selectTripEmoji(this)">🏖️</span>
+        <span class="emoji-opt" onclick="selectTripEmoji(this)">🗻</span>
+        <span class="emoji-opt" onclick="selectTripEmoji(this)">🏯</span>
+        <span class="emoji-opt" onclick="selectTripEmoji(this)">🌍</span>
+        <span class="emoji-opt" onclick="selectTripEmoji(this)">🗽</span>
+        <span class="emoji-opt" onclick="selectTripEmoji(this)">🎌</span>
+        <span class="emoji-opt" onclick="selectTripEmoji(this)">🍜</span>
+        <span class="emoji-opt" onclick="selectTripEmoji(this)">🎡</span>
+        <span class="emoji-opt" onclick="selectTripEmoji(this)">🏔️</span>
+        <span class="emoji-opt" onclick="selectTripEmoji(this)">🌴</span>
+        <span class="emoji-opt" onclick="selectTripEmoji(this)">🚢</span>
+        <span class="emoji-opt" onclick="selectTripEmoji(this)">🚂</span>
+        <span class="emoji-opt" onclick="selectTripEmoji(this)">🎭</span>
+        <span class="emoji-opt" onclick="selectTripEmoji(this)">⛷️</span>
+        <span class="emoji-opt" onclick="selectTripEmoji(this)">🏕️</span>
+        <span class="emoji-opt" onclick="selectTripEmoji(this)">🌸</span>
+        <span class="emoji-opt" onclick="selectTripEmoji(this)">🦁</span>
+        <span class="emoji-opt" onclick="selectTripEmoji(this)">🎰</span>
+      </div>
+    </div>
     <div class="field">
       <label>Nombre del viaje</label>
       <input id="new-trip-name" type="text" placeholder="Ej. Japón Junio 2026">
@@ -952,9 +995,8 @@ async function loadTrips() {
     memberCountByTrip[m.trip_id] = (memberCountByTrip[m.trip_id] || 0) + 1;
   });
 
-  const EMOJIS = ['✈️','🗺️','🏖️','🗻','🏯','🌍','🗽','🎌','🍜','🎡'];
   const html = (trips || []).map((t, i) => {
-    const emoji = EMOJIS[i % EMOJIS.length];
+    const emoji = t.icon || '✈️';
     const dates = t.start_date && t.end_date
       ? `${formatDate(t.start_date)} – ${formatDate(t.end_date)}`
       : 'Fechas por definir';
@@ -981,7 +1023,14 @@ window.openNewTripModal = () => {
   document.getElementById('new-trip-dest').value = '';
   document.getElementById('new-trip-start').value = '';
   document.getElementById('new-trip-end').value = '';
+  // Reset emoji picker to first option
+  document.querySelectorAll('.emoji-opt').forEach((el, i) => el.classList.toggle('selected', i === 0));
   openModal('modal-new-trip');
+};
+
+window.selectTripEmoji = (el) => {
+  document.querySelectorAll('.emoji-opt').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
 };
 
 window.createTrip = async () => {
@@ -989,6 +1038,7 @@ window.createTrip = async () => {
   const dest      = document.getElementById('new-trip-dest').value.trim();
   const startDate = document.getElementById('new-trip-start').value;
   const endDate   = document.getElementById('new-trip-end').value;
+  const icon      = document.querySelector('.emoji-opt.selected')?.textContent || '✈️';
 
   if (!name) { alert('Escribe un nombre para el viaje.'); return; }
 
@@ -999,6 +1049,10 @@ window.createTrip = async () => {
     p_end_date: endDate || null,
     p_user_id: currentUser.id,
   });
+
+  if (!error && newId) {
+    await sb.from('trips').update({ icon }).eq('id', newId);
+  }
 
   if (error) { alert('Error: ' + error.message); return; }
 
@@ -1570,7 +1624,40 @@ function getDaysBetween(start, end) {
   return days;
 }
 
+// ─── App icon ─────────────────────────────────────────────────────────────────
+const APP_EMOJIS = ['✈️','🗺️','🏖️','🗻','🏯','🌍','🗽','🎌','🍜','🎡','🏔️','🌴','🚢','🚂','🎭','⛷️','🏕️','🌸','🦁','🎰'];
+
+function loadAppIcon() {
+  const saved = localStorage.getItem('appIcon') || '✈️';
+  document.querySelectorAll('.app-icon-ref').forEach(el => el.textContent = saved);
+  const titleEl = document.getElementById('app-title');
+  if (titleEl) titleEl.textContent = saved + ' Los viajes de los Braus';
+  const logoEl = document.querySelector('.logo-icon');
+  if (logoEl) logoEl.textContent = saved;
+}
+
+window.changeAppIcon = () => {
+  const current = localStorage.getItem('appIcon') || '✈️';
+  const grid = APP_EMOJIS.map(e =>
+    `<span onclick="setAppIcon('${e}')" style="font-size:28px;width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;border:2px solid ${e===current?'var(--primary)':'transparent'};background:${e===current?'#eff6ff':'transparent'}">${e}</span>`
+  ).join('');
+  document.getElementById('modal-item-content').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div style="font-size:18px;font-weight:700">Icono de la app</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${grid}</div>
+      <button class="btn btn-ghost" onclick="closeModal('modal-item')">Cerrar</button>
+    </div>`;
+  openModal('modal-item');
+};
+
+window.setAppIcon = (emoji) => {
+  localStorage.setItem('appIcon', emoji);
+  loadAppIcon();
+  closeModal('modal-item');
+};
+
 // ─── Start ────────────────────────────────────────────────────────────────────
+loadAppIcon();
 init();
 </script>
 
