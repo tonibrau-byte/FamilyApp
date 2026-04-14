@@ -1438,20 +1438,16 @@ window.sendMessage = async () => {
 
     const { reply, mutations } = await res.json();
 
-    // Apply mutations to local state
+    // Apply trip metadata mutations (dates/name) — items come via Realtime
     if (mutations?.length) {
       mutations.forEach(mut => {
-        if (mut.action === 'created' && mut.item) {
-          tripItems.push(mut.item);
-        } else if (mut.action === 'deleted' && mut.id) {
-          tripItems = tripItems.filter(i => i.id !== mut.id);
-        } else if (mut.action === 'trip_updated' && mut.fields) {
+        if (mut.action === 'trip_updated' && mut.fields) {
           Object.assign(currentTrip, mut.fields);
           if (mut.fields.start_date) document.getElementById('set-start-date').value = mut.fields.start_date;
           if (mut.fields.end_date)   document.getElementById('set-end-date').value   = mut.fields.end_date;
+          renderCalendar();
         }
       });
-      renderCalendar();
     }
 
     // Show assistant reply
