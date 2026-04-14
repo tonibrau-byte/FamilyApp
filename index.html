@@ -304,63 +304,145 @@
     }
     .agenda-toggle input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; }
 
+    /* ── Time-grid calendar ── */
     .calendar-scroll {
       flex: 1;
-      overflow-x: auto;
-      overflow-y: auto;
-      padding: 12px;
+      overflow: auto;
       display: flex;
-      gap: 10px;
-      align-items: flex-start;
-    }
-
-    /* Agenda mode: single column */
-    .calendar-scroll.agenda-mode {
       flex-direction: column;
-      overflow-x: hidden;
-    }
-    .calendar-scroll.agenda-mode .day-col {
-      width: 100%;
-      min-width: unset;
-      max-width: 600px;
     }
 
-    .day-col {
+    /* Sticky header row with day names */
+    .cal-header-row {
+      display: flex;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
       flex-shrink: 0;
-      width: 160px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
     }
 
-    .day-header {
+    .cal-gutter-corner {
+      width: 44px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+    }
+
+    .cal-day-header {
+      flex: 1;
+      min-width: 120px;
       text-align: center;
       padding: 8px 4px;
-      border-radius: 10px;
-      background: var(--surface);
-      box-shadow: var(--shadow);
+      border-right: 1px solid var(--border);
     }
-    .day-header .day-name { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; }
-    .day-header .day-num  { font-size: 22px; font-weight: 800; }
-    .day-header .day-month { font-size: 12px; color: var(--muted); }
-    .day-header.today { background: var(--primary); color: #fff; }
-    .day-header.today .day-name,
-    .day-header.today .day-month { color: rgba(255,255,255,.8); }
+    .cal-day-header .day-name  { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; }
+    .cal-day-header .day-num   { font-size: 20px; font-weight: 800; }
+    .cal-day-header .day-month { font-size: 11px; color: var(--muted); }
+    .cal-day-header.today { background: #eff6ff; }
+    .cal-day-header.today .day-num { color: var(--primary); }
+
+    /* Body: time gutter + day columns side by side */
+    .cal-body {
+      display: flex;
+      flex: 1;
+    }
+
+    .cal-time-gutter {
+      width: 44px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      position: sticky;
+      left: 0;
+      background: var(--bg);
+      z-index: 5;
+    }
+
+    .cal-hour-label {
+      height: 56px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-end;
+      padding: 2px 6px 0 0;
+      font-size: 10px;
+      color: var(--muted);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+      box-sizing: border-box;
+    }
+
+    /* Unscheduled row above the time grid */
+    .cal-unscheduled-row {
+      display: flex;
+      border-bottom: 2px solid var(--border);
+      flex-shrink: 0;
+    }
+    .cal-unscheduled-gutter {
+      width: 44px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      color: var(--muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 4px 2px;
+      text-align: center;
+      line-height: 1.2;
+    }
+    .cal-unscheduled-day {
+      flex: 1;
+      min-width: 120px;
+      border-right: 1px solid var(--border);
+      padding: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-height: 32px;
+    }
+
+    .cal-day-col {
+      flex: 1;
+      min-width: 120px;
+      border-right: 1px solid var(--border);
+      position: relative;
+    }
+
+    .cal-slot {
+      height: 56px;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+      box-sizing: border-box;
+    }
 
     .item-pill {
-      border-radius: 10px;
-      padding: 8px 10px;
+      border-radius: 8px;
+      padding: 4px 7px;
       color: #fff;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
       cursor: pointer;
       line-height: 1.3;
       transition: opacity .1s;
+      width: calc(100% - 6px);
+      margin: 1px 3px;
+      display: block;
+      overflow: hidden;
+    }
+    .item-pill.timed {
+      position: absolute;
+      left: 3px;
+      right: 3px;
+      width: auto;
+      margin: 0;
+      z-index: 2;
     }
     .item-pill:active { opacity: .8; }
-    .item-pill .pill-time { font-size: 11px; opacity: .85; margin-bottom: 2px; }
-    .item-pill .pill-title { word-break: break-word; }
-    .item-pill .pill-loc { font-size: 11px; opacity: .8; margin-top: 2px; }
+    .item-pill .pill-time  { font-size: 10px; opacity: .85; }
+    .item-pill .pill-title { word-break: break-word; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .item-pill .pill-loc   { font-size: 10px; opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
     .item-pill[data-type=flight]     { background: var(--flight); }
     .item-pill[data-type=hotel]      { background: var(--hotel); }
@@ -368,6 +450,11 @@
     .item-pill[data-type=activity]   { background: var(--activity); }
     .item-pill[data-type=ticket]     { background: var(--ticket); }
     .item-pill[data-type=note]       { background: var(--note); }
+
+    /* Agenda mode */
+    .calendar-scroll.agenda-mode .cal-day-header,
+    .calendar-scroll.agenda-mode .cal-day-col,
+    .calendar-scroll.agenda-mode .cal-unscheduled-day { min-width: 200px; }
 
     .day-empty { font-size: 12px; color: var(--muted); text-align: center; padding: 8px 0; }
 
@@ -1107,8 +1194,12 @@ async function loadItems() {
 }
 
 // ─── Calendar rendering ───────────────────────────────────────────────────────
+const HOUR_START = 7;    // 7am
+const HOUR_END   = 24;   // midnight
+const SLOT_H     = 56;   // px per hour
+
 function renderCalendar() {
-  const scroll = document.getElementById('calendar-scroll');
+  const scroll   = document.getElementById('calendar-scroll');
   const agendaOn = document.getElementById('agenda-toggle').checked;
 
   if (!currentTrip?.start_date || !currentTrip?.end_date) {
@@ -1121,64 +1212,126 @@ function renderCalendar() {
     return;
   }
 
-  const today     = todayISO();
-  const days      = getDaysBetween(currentTrip.start_date, currentTrip.end_date);
+  const today      = todayISO();
+  const days       = getDaysBetween(currentTrip.start_date, currentTrip.end_date);
   const daysToShow = agendaOn ? days.filter(d => d === today) : days;
-
-  scroll.className = agendaOn ? 'calendar-scroll agenda-mode' : 'calendar-scroll';
+  scroll.className = 'calendar-scroll' + (agendaOn ? ' agenda-mode' : '');
 
   if (agendaOn && daysToShow.length === 0) {
-    scroll.innerHTML = `
-      <div class="no-dates-msg">
-        <div class="big-icon">📋</div>
-        <p>Hoy no está dentro del viaje.</p>
-      </div>`;
+    scroll.innerHTML = `<div class="no-dates-msg"><div class="big-icon">📋</div><p>Hoy no está dentro del viaje.</p></div>`;
     return;
   }
 
-  scroll.innerHTML = daysToShow.map(dateStr => renderDayCol(dateStr, today)).join('');
-}
-
-function renderDayCol(dateStr, today) {
-  const d    = new Date(dateStr + 'T00:00:00');
-  const isToday = dateStr === today;
-  const dayNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const dayNames   = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
   const monthNames = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
-  const items = tripItems.filter(it => {
-    if (it.date === dateStr) return true;
-    if (it.type === 'hotel' && it.check_in && it.check_out) {
-      return dateStr >= it.check_in && dateStr <= it.check_out;
-    }
-    return false;
-  });
-  const pillsHtml = items.map(it => {
-    const isHotelStay = it.type === 'hotel' && it.check_in && it.check_out && dateStr > it.check_in && dateStr < it.check_out;
-    const isHotelCheckout = it.type === 'hotel' && it.check_out === dateStr;
-    const extraStyle = isHotelStay
-      ? 'opacity:.55; font-style:italic;'
-      : isHotelCheckout
-        ? 'background: repeating-linear-gradient(135deg, var(--hotel) 0px, var(--hotel) 6px, rgba(0,0,0,.18) 6px, rgba(0,0,0,.18) 8px);'
-        : '';
-    const label = isHotelStay ? '🛏️ ' : (isHotelCheckout ? '🚪 ' : '');
-    const timeHtml = it.start_time && !isHotelStay ? `<div class="pill-time">${it.start_time.slice(0,5)}</div>` : '';
-    return `
-    <div class="item-pill" data-type="${it.type}" style="${extraStyle}" onclick="showItemDetail('${it.id}')">
-      ${timeHtml}
-      <div class="pill-title">${label}${esc(it.title)}</div>
-      ${it.location && !isHotelStay ? `<div class="pill-loc">📍 ${esc(it.location)}</div>` : ''}
+  // ── Header row ──
+  const headerCols = daysToShow.map(dateStr => {
+    const d = new Date(dateStr + 'T12:00:00Z');
+    const isToday = dateStr === today;
+    return `<div class="cal-day-header${isToday ? ' today' : ''}">
+      <div class="day-name">${dayNames[d.getUTCDay()]}</div>
+      <div class="day-num">${d.getUTCDate()}</div>
+      <div class="day-month">${monthNames[d.getUTCMonth()]}</div>
     </div>`;
   }).join('');
 
-  return `
-    <div class="day-col">
-      <div class="day-header${isToday ? ' today' : ''}">
-        <div class="day-name">${dayNames[d.getDay()]}</div>
-        <div class="day-num">${d.getDate()}</div>
-        <div class="day-month">${monthNames[d.getMonth()]}</div>
-      </div>
-      ${pillsHtml || '<div class="day-empty">—</div>'}
+  // ── Unscheduled row (items without time) ──
+  const unscheduledCols = daysToShow.map(dateStr => {
+    const items = getItemsForDay(dateStr).filter(it => !getItemTime(it, dateStr));
+    const pills = items.map(it => pillHtml(it, dateStr)).join('');
+    return `<div class="cal-unscheduled-day">${pills}</div>`;
+  }).join('');
+
+  // ── Hour labels ──
+  let hourLabels = '';
+  for (let h = HOUR_START; h < HOUR_END; h++) {
+    const label = h === 0 ? '12am' : h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h-12}pm`;
+    hourLabels += `<div class="cal-hour-label">${label}</div>`;
+  }
+
+  // ── Day columns with timed items ──
+  const dayCols = daysToShow.map(dateStr => {
+    const items = getItemsForDay(dateStr).filter(it => getItemTime(it, dateStr) !== null);
+    const slots = Array.from({ length: HOUR_END - HOUR_START }, (_, i) => `<div class="cal-slot"></div>`).join('');
+
+    const timedPills = items.map(it => {
+      const minutes = getItemTime(it, dateStr);
+      const top = ((minutes - HOUR_START * 60) / 60) * SLOT_H;
+      const duration = it.end_time ? (timeToMinutes(it.end_time) - timeToMinutes(it.start_time)) : 60;
+      const height = Math.max((duration / 60) * SLOT_H, 28);
+      return `<div class="item-pill timed" data-type="${it.type}"
+        style="top:${top}px; height:${height}px; ${hotelStyle(it, dateStr)}"
+        onclick="showItemDetail('${it.id}')">
+        <div class="pill-time">${it.start_time.slice(0,5)}</div>
+        <div class="pill-title">${hotelLabel(it, dateStr)}${esc(it.title)}</div>
+        ${it.location ? `<div class="pill-loc">📍 ${esc(it.location)}</div>` : ''}
+      </div>`;
+    }).join('');
+
+    return `<div class="cal-day-col" style="height:${(HOUR_END-HOUR_START)*SLOT_H}px">${slots}${timedPills}</div>`;
+  }).join('');
+
+  scroll.innerHTML = `
+    <div class="cal-header-row">
+      <div class="cal-gutter-corner"></div>
+      ${headerCols}
+    </div>
+    <div class="cal-unscheduled-row">
+      <div class="cal-unscheduled-gutter">sin hora</div>
+      ${unscheduledCols}
+    </div>
+    <div class="cal-body">
+      <div class="cal-time-gutter">${hourLabels}</div>
+      ${dayCols}
     </div>`;
+}
+
+function getItemsForDay(dateStr) {
+  return tripItems.filter(it => {
+    if (it.date === dateStr) return true;
+    if (it.type === 'hotel' && it.check_in && it.check_out)
+      return dateStr >= it.check_in && dateStr <= it.check_out;
+    return false;
+  });
+}
+
+// Hotels, tickets and notes always go in the unscheduled row unless they have a specific time
+const ALWAYS_UNSCHEDULED = ['hotel', 'ticket', 'note'];
+
+// Returns minutes from midnight if item should appear in time grid, else null
+function getItemTime(it, dateStr) {
+  if (ALWAYS_UNSCHEDULED.includes(it.type)) return null;
+  if (it.start_time) return timeToMinutes(it.start_time);
+  return null;
+}
+
+function timeToMinutes(t) {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + (m || 0);
+}
+
+function hotelStyle(it, dateStr) {
+  if (it.type !== 'hotel') return '';
+  const isStay = it.check_in && it.check_out && dateStr > it.check_in && dateStr < it.check_out;
+  const isOut  = it.check_out === dateStr;
+  if (isStay) return 'opacity:.55; font-style:italic;';
+  if (isOut)  return 'background: repeating-linear-gradient(135deg, var(--hotel) 0px, var(--hotel) 6px, rgba(0,0,0,.18) 6px, rgba(0,0,0,.18) 8px);';
+  return '';
+}
+
+function hotelLabel(it, dateStr) {
+  if (it.type !== 'hotel') return '';
+  if (it.check_in && it.check_out && dateStr > it.check_in && dateStr < it.check_out) return '🛏️ ';
+  if (it.check_out === dateStr) return '🚪 ';
+  return '';
+}
+
+function pillHtml(it, dateStr) {
+  return `<div class="item-pill" data-type="${it.type}" style="${hotelStyle(it, dateStr)}" onclick="showItemDetail('${it.id}')">
+    <div class="pill-title">${hotelLabel(it, dateStr)}${esc(it.title)}</div>
+    ${it.location ? `<div class="pill-loc">📍 ${esc(it.location)}</div>` : ''}
+  </div>`;
 }
 
 window.toggleAgenda = () => renderCalendar();
