@@ -1095,20 +1095,25 @@ function renderDayCol(dateStr, today) {
   const monthNames = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
   const items = tripItems.filter(it => {
-    // Items with a specific date
     if (it.date === dateStr) return true;
-    // Hotels: show on every day from check_in to check_out
     if (it.type === 'hotel' && it.check_in && it.check_out) {
       return dateStr >= it.check_in && dateStr <= it.check_out;
     }
     return false;
   });
-  const pillsHtml = items.map(it => `
-    <div class="item-pill" data-type="${it.type}" onclick="showItemDetail('${it.id}')">
-      ${it.start_time ? `<div class="pill-time">${it.start_time.slice(0,5)}</div>` : ''}
-      <div class="pill-title">${esc(it.title)}</div>
-      ${it.location ? `<div class="pill-loc">📍 ${esc(it.location)}</div>` : ''}
-    </div>`).join('');
+  const pillsHtml = items.map(it => {
+    const isHotelStay = it.type === 'hotel' && it.check_in && it.check_out && dateStr > it.check_in && dateStr < it.check_out;
+    const isHotelCheckout = it.type === 'hotel' && it.check_out === dateStr;
+    const extraStyle = isHotelStay ? 'opacity:.55; font-style:italic;' : '';
+    const label = isHotelStay ? '🛏️ ' : (isHotelCheckout ? '🚪 ' : '');
+    const timeHtml = it.start_time && !isHotelStay ? `<div class="pill-time">${it.start_time.slice(0,5)}</div>` : '';
+    return `
+    <div class="item-pill" data-type="${it.type}" style="${extraStyle}" onclick="showItemDetail('${it.id}')">
+      ${timeHtml}
+      <div class="pill-title">${label}${esc(it.title)}</div>
+      ${it.location && !isHotelStay ? `<div class="pill-loc">📍 ${esc(it.location)}</div>` : ''}
+    </div>`;
+  }).join('');
 
   return `
     <div class="day-col">
