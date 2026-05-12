@@ -1537,7 +1537,19 @@ window.saveManualItem = async () => {
     check_out:  type === 'hotel' ? checkOut : null,
   };
 
-  const { error } = await sb.from('trip_items').insert(row);
+  const { error } = await sb.rpc('add_trip_item', {
+    p_trip_id:    currentTrip.id,
+    p_type:       type,
+    p_title:      title,
+    p_date:       type === 'hotel' ? checkIn : date,
+    p_start_time: startTime || null,
+    p_end_time:   endTime   || null,
+    p_location:   location  || null,
+    p_notes:      notes     || null,
+    p_check_in:   type === 'hotel' ? checkIn  : null,
+    p_check_out:  type === 'hotel' ? checkOut : null,
+    p_user_id:    currentUser.id,
+  });
   if (error) { alert('Error: ' + error.message); return; }
 
   closeModal('modal-add-item');
