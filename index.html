@@ -678,6 +678,33 @@
     .legend-dot.ticket::before     { background: var(--ticket); }
     .legend-dot.note::before       { background: var(--note); }
 
+    /* ── Item type buttons ── */
+    .type-btn {
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 2px solid var(--border);
+      background: var(--surface);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .type-btn.selected { border-color: var(--primary); background: #eff6ff; }
+
+    /* ── Add item button in calendar header ── */
+    .cal-add-btn {
+      display: block;
+      width: 100%;
+      padding: 2px 0;
+      font-size: 16px;
+      color: var(--muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      transition: color .15s;
+    }
+    .cal-add-btn:hover { color: var(--primary); }
+
     /* ── Emoji picker ── */
     .emoji-picker {
       display: flex;
@@ -924,6 +951,64 @@
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-invite')">Cerrar</button>
       <button class="btn btn-primary" onclick="copyInviteLink()">Copiar enlace</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Item Modal -->
+<div id="modal-add-item" class="modal-backdrop hidden" onclick="handleBackdropClick(event,'modal-add-item')">
+  <div class="modal">
+    <div class="modal-title">Añadir al calendario</div>
+    <div class="field">
+      <label>Tipo</label>
+      <div style="display:flex; flex-wrap:wrap; gap:6px;" id="item-type-picker">
+        <button class="type-btn selected" data-type="flight"     onclick="selectItemType(this)">✈️ Vuelo</button>
+        <button class="type-btn"          data-type="hotel"      onclick="selectItemType(this)">🏨 Hotel</button>
+        <button class="type-btn"          data-type="restaurant" onclick="selectItemType(this)">🍽️ Restaurante</button>
+        <button class="type-btn"          data-type="activity"   onclick="selectItemType(this)">🎯 Actividad</button>
+        <button class="type-btn"          data-type="ticket"     onclick="selectItemType(this)">🎟️ ToDo</button>
+        <button class="type-btn"          data-type="note"       onclick="selectItemType(this)">📝 Nota</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Título</label>
+      <input id="item-title" type="text" placeholder="Ej. Vuelo LH714, Ramen Ichiran...">
+    </div>
+    <div class="field">
+      <label>Fecha</label>
+      <input id="item-date" type="date">
+    </div>
+    <div id="item-hotel-fields" style="display:none; flex-direction:column; gap:12px;">
+      <div class="field">
+        <label>Check-in</label>
+        <input id="item-checkin" type="date">
+      </div>
+      <div class="field">
+        <label>Check-out</label>
+        <input id="item-checkout" type="date">
+      </div>
+    </div>
+    <div style="display:flex; gap:10px;">
+      <div class="field" style="flex:1">
+        <label>Hora inicio (opcional)</label>
+        <input id="item-start-time" type="time">
+      </div>
+      <div class="field" style="flex:1">
+        <label>Hora fin (opcional)</label>
+        <input id="item-end-time" type="time">
+      </div>
+    </div>
+    <div class="field">
+      <label>Lugar (opcional)</label>
+      <input id="item-location" type="text" placeholder="Ej. Shinjuku, Tokio">
+    </div>
+    <div class="field">
+      <label>Notas (opcional)</label>
+      <textarea id="item-notes" rows="2" placeholder="Confirmación, detalles..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-item')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveManualItem()">Guardar</button>
     </div>
   </div>
 </div>
@@ -1233,6 +1318,7 @@ function renderCalendar() {
       <div class="day-name">${dayNames[d.getUTCDay()]}</div>
       <div class="day-num">${d.getUTCDate()}</div>
       <div class="day-month">${monthNames[d.getUTCMonth()]}</div>
+      <button class="cal-add-btn" onclick="openAddItemModal('${dateStr}')" title="Añadir">+</button>
     </div>`;
   }).join('');
 
@@ -1397,6 +1483,65 @@ window.deleteItem = async (itemId) => {
 
 // ─── Invite ───────────────────────────────────────────────────────────────────
 window.openInviteModal  = () => openModal('modal-invite');
+
+// ─── Manual item creation ─────────────────────────────────────────────────────
+window.openAddItemModal = (dateStr) => {
+  // Reset form
+  document.querySelectorAll('.type-btn').forEach((b, i) => b.classList.toggle('selected', i === 0));
+  document.getElementById('item-title').value      = '';
+  document.getElementById('item-date').value       = dateStr || '';
+  document.getElementById('item-checkin').value    = dateStr || '';
+  document.getElementById('item-checkout').value   = '';
+  document.getElementById('item-start-time').value = '';
+  document.getElementById('item-end-time').value   = '';
+  document.getElementById('item-location').value   = '';
+  document.getElementById('item-notes').value      = '';
+  document.getElementById('item-hotel-fields').style.display = 'none';
+  openModal('modal-add-item');
+};
+
+window.selectItemType = (btn) => {
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  const isHotel = btn.dataset.type === 'hotel';
+  document.getElementById('item-hotel-fields').style.display = isHotel ? 'flex' : 'none';
+  document.getElementById('item-date').closest('.field').style.display = isHotel ? 'none' : 'flex';
+};
+
+window.saveManualItem = async () => {
+  const type     = document.querySelector('.type-btn.selected')?.dataset.type || 'note';
+  const title    = document.getElementById('item-title').value.trim();
+  const date     = document.getElementById('item-date').value;
+  const checkIn  = document.getElementById('item-checkin').value;
+  const checkOut = document.getElementById('item-checkout').value;
+  const startTime = document.getElementById('item-start-time').value;
+  const endTime   = document.getElementById('item-end-time').value;
+  const location  = document.getElementById('item-location').value.trim();
+  const notes     = document.getElementById('item-notes').value.trim();
+
+  if (!title) { alert('Escribe un título.'); return; }
+  if (type === 'hotel' && (!checkIn || !checkOut)) { alert('Selecciona check-in y check-out.'); return; }
+  if (type !== 'hotel' && !date) { alert('Selecciona una fecha.'); return; }
+
+  const row = {
+    trip_id:    currentTrip.id,
+    type,
+    title,
+    added_by:   currentUser.id,
+    date:       type === 'hotel' ? checkIn : date,
+    start_time: startTime || null,
+    end_time:   endTime   || null,
+    location:   location  || null,
+    notes:      notes     || null,
+    check_in:   type === 'hotel' ? checkIn  : null,
+    check_out:  type === 'hotel' ? checkOut : null,
+  };
+
+  const { error } = await sb.from('trip_items').insert(row);
+  if (error) { alert('Error: ' + error.message); return; }
+
+  closeModal('modal-add-item');
+};
 window.copyInviteLink   = () => {
   navigator.clipboard.writeText(document.getElementById('invite-link').value);
   alert('¡Enlace copiado! Compártelo con tu familia.');
