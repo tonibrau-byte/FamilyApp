@@ -723,11 +723,55 @@
     .emoji-opt:hover { background: var(--bg); }
     .emoji-opt.selected { border-color: var(--primary); background: #eff6ff; }
 
+    /* ── Mobile day navigator ── */
+    .mobile-day-nav {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 12px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .mobile-day-nav .nav-arrow {
+      width: 40px; height: 40px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      color: var(--primary);
+      font-size: 26px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 50%;
+      transition: background .15s;
+    }
+    .mobile-day-nav .nav-arrow:hover  { background: var(--border); }
+    .mobile-day-nav .nav-arrow:disabled { color: var(--muted); cursor: default; }
+    .mobile-day-nav .mobile-day-title {
+      font-size: 15px; font-weight: 700; color: var(--text); text-align: center;
+    }
+
     /* ── Responsive ── */
     @media (min-width: 640px) {
       .modal { border-radius: 20px; align-self: center; margin-bottom: 0; }
       .modal-backdrop { align-items: center; }
       .day-col { width: 180px; }
+    }
+
+    @media (max-width: 639px) {
+      .mobile-day-nav { display: flex; }
+
+      /* Hide all day columns except the active one */
+      .cal-day-header:not([data-day-active]),
+      .cal-unscheduled-day:not([data-day-active]),
+      .cal-day-col:not([data-day-active]) { display: none !important; }
+
+      /* Active day fills the full remaining width */
+      .cal-day-header[data-day-active],
+      .cal-unscheduled-day[data-day-active],
+      .cal-day-col[data-day-active] { min-width: 0; flex: 1; }
+
+      /* No horizontal scroll needed with a single column */
+      .calendar-scroll { overflow-x: hidden; }
     }
   </style>
 </head>
@@ -820,6 +864,11 @@
         Solo hoy
       </label>
       <button class="btn btn-ghost btn-sm" onclick="openSetDatesModal()">✏️ Fechas</button>
+    </div>
+    <div id="mobile-day-nav" class="mobile-day-nav">
+      <button id="mobile-prev-btn" class="nav-arrow" onclick="mobilePrevDay()">‹</button>
+      <span id="mobile-day-label" class="mobile-day-title"></span>
+      <button id="mobile-next-btn" class="nav-arrow" onclick="mobileNextDay()">›</button>
     </div>
     <div id="calendar-scroll" class="calendar-scroll">
       <div class="no-dates-msg">
@@ -1035,11 +1084,13 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ─── App state ────────────────────────────────────────────────────────────────
-let currentUser  = null;
-let currentTrip  = null;
-let tripItems    = [];
-let chatHistory  = [];
-let realtimeChan = null;
+let currentUser      = null;
+let currentTrip      = null;
+let tripItems        = [];
+let chatHistory      = [];
+let realtimeChan     = null;
+let mobileDayIdx     = -1;   // -1 = needs init to today
+let currentDaysToShow = [];
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
@@ -1257,6 +1308,7 @@ window.openTrip = async (tripId) => {
   switchTab('calendar');
 
   await loadItems();
+  mobileDayIdx = -1;
   renderCalendar();
   await loadChatHistory();
   subscribeRealtime();
@@ -1311,10 +1363,10 @@ function renderCalendar() {
   const monthNames = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
   // ── Header row ──
-  const headerCols = daysToShow.map(dateStr => {
+  const headerCols = daysToShow.map((dateStr, i) => {
     const d = new Date(dateStr + 'T12:00:00Z');
     const isToday = dateStr === today;
-    return `<div class="cal-day-header${isToday ? ' today' : ''}">
+    return `<div class="cal-day-header${isToday ? ' today' : ''}" data-day-idx="${i}">
       <div class="day-name">${dayNames[d.getUTCDay()]}</div>
       <div class="day-num">${d.getUTCDate()}</div>
       <div class="day-month">${monthNames[d.getUTCMonth()]}</div>
@@ -1323,10 +1375,10 @@ function renderCalendar() {
   }).join('');
 
   // ── Unscheduled row (items without time) ──
-  const unscheduledCols = daysToShow.map(dateStr => {
+  const unscheduledCols = daysToShow.map((dateStr, i) => {
     const items = getItemsForDay(dateStr).filter(it => !getItemTime(it, dateStr));
     const pills = items.map(it => pillHtml(it, dateStr)).join('');
-    return `<div class="cal-unscheduled-day">${pills}</div>`;
+    return `<div class="cal-unscheduled-day" data-day-idx="${i}">${pills}</div>`;
   }).join('');
 
   // ── Hour labels ──
@@ -1337,7 +1389,7 @@ function renderCalendar() {
   }
 
   // ── Day columns with timed items ──
-  const dayCols = daysToShow.map(dateStr => {
+  const dayCols = daysToShow.map((dateStr, i) => {
     const items = getItemsForDay(dateStr).filter(it => getItemTime(it, dateStr) !== null);
     const slots = Array.from({ length: HOUR_END - HOUR_START }, (_, i) => `<div class="cal-slot"></div>`).join('');
 
@@ -1355,7 +1407,7 @@ function renderCalendar() {
       </div>`;
     }).join('');
 
-    return `<div class="cal-day-col" style="height:${(HOUR_END-HOUR_START)*SLOT_H}px">${slots}${timedPills}</div>`;
+    return `<div class="cal-day-col" data-day-idx="${i}" style="height:${(HOUR_END-HOUR_START)*SLOT_H}px">${slots}${timedPills}</div>`;
   }).join('');
 
   scroll.innerHTML = `
@@ -1371,7 +1423,53 @@ function renderCalendar() {
       <div class="cal-time-gutter">${hourLabels}</div>
       ${dayCols}
     </div>`;
+
+  currentDaysToShow = daysToShow;
+  applyMobileDay();
 }
+
+// ─── Mobile day navigation ────────────────────────────────────────────────────
+function applyMobileDay() {
+  const isMobile = window.innerWidth < 640;
+  const nav = document.getElementById('mobile-day-nav');
+  if (!nav) return;
+
+  if (!isMobile || !currentDaysToShow.length) {
+    nav.style.display = '';
+    document.querySelectorAll('[data-day-idx]').forEach(el => el.removeAttribute('data-day-active'));
+    return;
+  }
+
+  // Init to today on first render
+  if (mobileDayIdx === -1) {
+    const todayStr = todayISO();
+    const idx = currentDaysToShow.indexOf(todayStr);
+    mobileDayIdx = idx >= 0 ? idx : 0;
+  }
+  mobileDayIdx = Math.max(0, Math.min(mobileDayIdx, currentDaysToShow.length - 1));
+
+  // Update nav label
+  const dateStr = currentDaysToShow[mobileDayIdx];
+  const d = new Date(dateStr + 'T12:00:00Z');
+  const dayNames   = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const monthNames = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  document.getElementById('mobile-day-label').textContent =
+    `${dayNames[d.getUTCDay()]} ${d.getUTCDate()} ${monthNames[d.getUTCMonth()]}`;
+
+  document.getElementById('mobile-prev-btn').disabled = mobileDayIdx === 0;
+  document.getElementById('mobile-next-btn').disabled = mobileDayIdx === currentDaysToShow.length - 1;
+
+  // Mark active day elements
+  document.querySelectorAll('[data-day-idx]').forEach(el => {
+    if (parseInt(el.dataset.dayIdx) === mobileDayIdx) el.setAttribute('data-day-active', '');
+    else el.removeAttribute('data-day-active');
+  });
+}
+
+window.mobilePrevDay = () => { mobileDayIdx--; applyMobileDay(); };
+window.mobileNextDay = () => { mobileDayIdx++; applyMobileDay(); };
+
+window.addEventListener('resize', applyMobileDay);
 
 function getItemsForDay(dateStr) {
   return tripItems.filter(it => {
