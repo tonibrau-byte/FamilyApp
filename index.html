@@ -1007,7 +1007,7 @@
 <!-- Add Item Modal -->
 <div id="modal-add-item" class="modal-backdrop hidden" onclick="handleBackdropClick(event,'modal-add-item')">
   <div class="modal">
-    <div class="modal-title">Añadir al calendario</div>
+    <div id="add-item-modal-title" class="modal-title">Añadir al calendario</div>
     <div class="field">
       <label>Tipo</label>
       <div style="display:flex; flex-wrap:wrap; gap:6px;" id="item-type-picker">
@@ -1056,7 +1056,7 @@
       <textarea id="item-notes" rows="2" placeholder="Confirmación, detalles..."></textarea>
     </div>
     <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('modal-add-item')">Cancelar</button>
+      <button class="btn btn-ghost" onclick="cancelItemModal()">Cancelar</button>
       <button class="btn btn-primary" onclick="saveManualItem()">Guardar</button>
     </div>
   </div>
@@ -1091,6 +1091,7 @@ let chatHistory      = [];
 let realtimeChan     = null;
 let mobileDayIdx     = -1;   // -1 = needs init to today
 let currentDaysToShow = [];
+let editingItemId    = null;
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
@@ -1565,6 +1566,7 @@ window.showItemDetail = (itemId) => {
       ${rows.join('')}
       <div class="modal-actions" style="margin-top:8px">
         <button class="btn btn-ghost" onclick="closeModal('modal-item')">Cerrar</button>
+        <button class="btn btn-primary btn-sm" onclick="openEditItemModal('${it.id}')">✏️ Editar</button>
         <button class="btn btn-danger btn-sm" onclick="deleteItem('${it.id}')">Eliminar</button>
       </div>
     </div>`;
@@ -1582,7 +1584,38 @@ window.deleteItem = async (itemId) => {
 // ─── Invite ───────────────────────────────────────────────────────────────────
 window.openInviteModal  = () => openModal('modal-invite');
 
-// ─── Manual item creation ─────────────────────────────────────────────────────
+// ─── Manual item creation / editing ──────────────────────────────────────────
+window.openEditItemModal = (itemId) => {
+  const it = tripItems.find(i => i.id === itemId);
+  if (!it) return;
+  closeModal('modal-item');
+  editingItemId = itemId;
+
+  document.getElementById('add-item-modal-title').textContent = 'Editar entrada';
+
+  const isHotel = it.type === 'hotel';
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.toggle('selected', b.dataset.type === it.type));
+  document.getElementById('item-hotel-fields').style.display = isHotel ? 'flex' : 'none';
+  document.getElementById('item-date').closest('.field').style.display = isHotel ? 'none' : 'flex';
+
+  document.getElementById('item-title').value      = it.title      || '';
+  document.getElementById('item-date').value       = it.date       || '';
+  document.getElementById('item-checkin').value    = it.check_in   || '';
+  document.getElementById('item-checkout').value   = it.check_out  || '';
+  document.getElementById('item-start-time').value = it.start_time ? it.start_time.slice(0,5) : '';
+  document.getElementById('item-end-time').value   = it.end_time   ? it.end_time.slice(0,5)   : '';
+  document.getElementById('item-location').value   = it.location   || '';
+  document.getElementById('item-notes').value      = it.notes      || '';
+
+  openModal('modal-add-item');
+};
+
+window.cancelItemModal = () => {
+  editingItemId = null;
+  document.getElementById('add-item-modal-title').textContent = 'Añadir al calendario';
+  closeModal('modal-add-item');
+};
+
 window.openAddItemModal = (dateStr) => {
   // Reset form
   document.querySelectorAll('.type-btn').forEach((b, i) => b.classList.toggle('selected', i === 0));
@@ -1621,11 +1654,9 @@ window.saveManualItem = async () => {
   if (type === 'hotel' && (!checkIn || !checkOut)) { alert('Selecciona check-in y check-out.'); return; }
   if (type !== 'hotel' && !date) { alert('Selecciona una fecha.'); return; }
 
-  const row = {
-    trip_id:    currentTrip.id,
+  const fields = {
     type,
     title,
-    added_by:   currentUser.id,
     date:       type === 'hotel' ? checkIn : date,
     start_time: startTime || null,
     end_time:   endTime   || null,
@@ -1635,22 +1666,35 @@ window.saveManualItem = async () => {
     check_out:  type === 'hotel' ? checkOut : null,
   };
 
-  const { error } = await sb.rpc('add_trip_item', {
-    p_trip_id:    currentTrip.id,
-    p_type:       type,
-    p_title:      title,
-    p_date:       type === 'hotel' ? checkIn : date,
-    p_start_time: startTime || null,
-    p_end_time:   endTime   || null,
-    p_location:   location  || null,
-    p_notes:      notes     || null,
-    p_check_in:   type === 'hotel' ? checkIn  : null,
-    p_check_out:  type === 'hotel' ? checkOut : null,
-    p_user_id:    currentUser.id,
-  });
-  if (error) { alert('Error: ' + error.message); return; }
+  if (editingItemId) {
+    const { error } = await sb
+      .from('trip_items')
+      .update(fields)
+      .eq('id', editingItemId)
+      .eq('trip_id', currentTrip.id);
+    if (error) { alert('Error: ' + error.message); return; }
+    editingItemId = null;
+    document.getElementById('add-item-modal-title').textContent = 'Añadir al calendario';
+  } else {
+    const { error } = await sb.rpc('add_trip_item', {
+      p_trip_id:    currentTrip.id,
+      p_type:       type,
+      p_title:      title,
+      p_date:       fields.date,
+      p_start_time: fields.start_time,
+      p_end_time:   fields.end_time,
+      p_location:   fields.location,
+      p_notes:      fields.notes,
+      p_check_in:   fields.check_in,
+      p_check_out:  fields.check_out,
+      p_user_id:    currentUser.id,
+    });
+    if (error) { alert('Error: ' + error.message); return; }
+  }
 
   closeModal('modal-add-item');
+  await loadItems();
+  renderCalendar();
 };
 window.copyInviteLink   = () => {
   navigator.clipboard.writeText(document.getElementById('invite-link').value);
