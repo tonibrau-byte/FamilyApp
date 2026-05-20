@@ -1140,7 +1140,17 @@ let editingItemId    = null;
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
-  // Detect Supabase password-recovery redirect (link from email)
+  // Detect recovery link: Supabase puts type=recovery in the URL hash
+  if (window.location.hash.includes('type=recovery')) {
+    // Let Supabase process the hash token, then show reset form
+    sb.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') showView('view-reset');
+    });
+    await sb.auth.getSession(); // triggers hash processing
+    showView('view-reset');    // fallback in case event already fired
+    return;
+  }
+
   sb.auth.onAuthStateChange((event) => {
     if (event === 'PASSWORD_RECOVERY') showView('view-reset');
   });
