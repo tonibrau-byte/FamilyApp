@@ -813,6 +813,31 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
+     VIEW: RESET PASSWORD
+═══════════════════════════════════════════════════════════ -->
+<div id="view-reset" class="view">
+  <div class="auth-box card">
+    <div class="auth-logo">
+      <div class="logo-icon">🔑</div>
+      <h1>Nueva contraseña</h1>
+      <p>Elige una contraseña nueva para tu cuenta</p>
+    </div>
+    <form class="auth-form" onsubmit="saveNewPassword(event)">
+      <div class="field">
+        <label>Nueva contraseña</label>
+        <input id="reset-password" type="password" placeholder="Mínimo 6 caracteres" required minlength="6">
+      </div>
+      <div class="field">
+        <label>Repite la contraseña</label>
+        <input id="reset-password2" type="password" placeholder="Repite la contraseña" required minlength="6">
+      </div>
+      <div id="reset-error" class="auth-error hidden"></div>
+      <button type="submit" class="btn btn-primary" id="reset-submit-btn">Guardar contraseña</button>
+    </form>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
      VIEW: TRIPS LIST
 ═══════════════════════════════════════════════════════════ -->
 <div id="view-trips" class="view">
@@ -1095,6 +1120,11 @@ let editingItemId    = null;
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
+  // Detect Supabase password-recovery redirect (link from email)
+  sb.auth.onAuthStateChange((event) => {
+    if (event === 'PASSWORD_RECOVERY') showView('view-reset');
+  });
+
   const { data: { session } } = await sb.auth.getSession();
   if (session?.user) {
     currentUser = session.user;
@@ -1105,6 +1135,40 @@ async function init() {
     await checkPendingJoin();
   }
 }
+
+window.saveNewPassword = async (e) => {
+  e.preventDefault();
+  const p1    = document.getElementById('reset-password').value;
+  const p2    = document.getElementById('reset-password2').value;
+  const errEl = document.getElementById('reset-error');
+  errEl.classList.add('hidden');
+
+  if (p1 !== p2) {
+    errEl.textContent = 'Las contraseñas no coinciden.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  const btn = document.getElementById('reset-submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+
+  const { error } = await sb.auth.updateUser({ password: p1 });
+
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.classList.remove('hidden');
+    btn.disabled = false;
+    btn.textContent = 'Guardar contraseña';
+    return;
+  }
+
+  alert('✅ Contraseña cambiada. Iniciando sesión...');
+  const { data: { session } } = await sb.auth.getSession();
+  currentUser = session?.user;
+  if (currentUser) await showTrips();
+  else showView('view-auth');
+};
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 window.switchAuthTab = (tab) => {
