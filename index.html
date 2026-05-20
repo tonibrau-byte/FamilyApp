@@ -823,6 +823,7 @@
       </div>
       <div id="auth-error" class="auth-error hidden"></div>
       <button type="submit" class="btn btn-primary" id="auth-submit-btn">Iniciar sesión</button>
+      <button type="button" id="forgot-btn" class="btn btn-ghost btn-sm" style="margin-top:4px" onclick="sendPasswordReset()">¿Olvidaste tu contraseña?</button>
     </form>
   </div>
 </div>
@@ -1155,6 +1156,16 @@ async function init() {
   }
 }
 
+window.sendPasswordReset = async () => {
+  const email = document.getElementById('auth-email').value.trim();
+  if (!email) { alert('Escribe tu email primero.'); return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.href,
+  });
+  if (error) { alert('Error: ' + error.message); return; }
+  alert('✅ Te hemos enviado un email con el enlace para cambiar tu contraseña.');
+};
+
 window.saveNewPassword = async (e) => {
   e.preventDefault();
   const p1    = document.getElementById('reset-password').value;
@@ -1197,6 +1208,7 @@ window.switchAuthTab = (tab) => {
   document.getElementById('field-name').style.display = tab === 'register' ? 'flex' : 'none';
   document.getElementById('auth-submit-btn').textContent =
     tab === 'login' ? 'Iniciar sesión' : 'Crear cuenta';
+  document.getElementById('forgot-btn').style.display = tab === 'login' ? '' : 'none';
   document.getElementById('auth-error').classList.add('hidden');
 };
 
