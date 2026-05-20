@@ -723,6 +723,21 @@
     .emoji-opt:hover { background: var(--bg); }
     .emoji-opt.selected { border-color: var(--primary); background: #eff6ff; }
 
+    /* ── Print / PDF ── */
+    @media print {
+      body { background: #fff; }
+      .view { display: none !important; }
+      #view-trip { display: flex !important; }
+      .topbar, .tab-bar, .legend, .calendar-toolbar, .mobile-day-nav,
+      #tab-chat, .back-btn { display: none !important; }
+      #tab-calendar { display: block !important; }
+      .calendar-scroll { overflow: visible !important; height: auto !important; }
+      .cal-day-header:not([data-day-active]),
+      .cal-unscheduled-day:not([data-day-active]),
+      .cal-day-col:not([data-day-active]) { display: flex !important; }
+      @page { margin: 1cm; }
+    }
+
     /* ── Mobile day navigator ── */
     .mobile-day-nav {
       display: none;
@@ -888,7 +903,11 @@
         <input type="checkbox" id="agenda-toggle" onchange="toggleAgenda()">
         Solo hoy
       </label>
-      <button class="btn btn-ghost btn-sm" onclick="openSetDatesModal()">✏️ Fechas</button>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-ghost btn-sm" onclick="exportToICS()" title="Descargar para Calendar del móvil">📥 .ics</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.print()" title="Imprimir / Guardar PDF">🖨️</button>
+        <button class="btn btn-ghost btn-sm" onclick="openSetDatesModal()">✏️ Fechas</button>
+      </div>
     </div>
     <div id="mobile-day-nav" class="mobile-day-nav">
       <button id="mobile-prev-btn" class="nav-arrow" onclick="mobilePrevDay()">‹</button>
@@ -1760,10 +1779,84 @@ window.saveManualItem = async () => {
   await loadItems();
   renderCalendar();
 };
-window.copyInviteLink   = () => {
+window.copyInviteLink = () => {
   navigator.clipboard.writeText(document.getElementById('invite-link').value);
   alert('¡Enlace copiado! Compártelo con tu familia.');
 };
+
+// ─── ICS export ───────────────────────────────────────────────────────────────
+window.exportToICS = () => {
+  if (!currentTrip) return;
+  if (!tripItems.length) { alert('No hay entradas en el calendario todavía.'); return; }
+
+  const TYPE_LABELS = {
+    flight: '✈️ Vuelo', hotel: '🏨 Hotel', restaurant: '🍽️ Restaurante',
+    activity: '🎯 Actividad', ticket: '🎟️ ToDo', note: '📝 Nota',
+  };
+
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//FamilyApp//ES',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    `X-WR-CALNAME:${icsEsc(currentTrip.name)}`,
+  ];
+
+  tripItems.forEach((it) => {
+    lines.push('BEGIN:VEVENT');
+    lines.push(`UID:familyapp-${it.id}@familyapp`);
+
+    const label = TYPE_LABELS[it.type] || it.type;
+    lines.push(`SUMMARY:${icsEsc(label + ' ' + it.title)}`);
+    if (it.notes)    lines.push(`DESCRIPTION:${icsEsc(it.notes)}`);
+    if (it.location) lines.push(`LOCATION:${icsEsc(it.location)}`);
+
+    if (it.type === 'hotel' && it.check_in) {
+      lines.push(`DTSTART;VALUE=DATE:${it.check_in.replace(/-/g,'')}`);
+      const end = new Date(it.check_out + 'T12:00:00Z');
+      end.setUTCDate(end.getUTCDate() + 1);
+      lines.push(`DTEND;VALUE=DATE:${end.toISOString().slice(0,10).replace(/-/g,'')}`);
+    } else if (it.date && it.start_time) {
+      lines.push(`DTSTART:${icsDateTime(it.date, it.start_time)}`);
+      if (it.end_time) {
+        lines.push(`DTEND:${icsDateTime(it.date, it.end_time)}`);
+      } else {
+        const end = new Date(it.date + 'T' + it.start_time);
+        end.setHours(end.getHours() + 1);
+        lines.push(`DTEND:${icsDateFromDate(end)}`);
+      }
+    } else if (it.date) {
+      lines.push(`DTSTART;VALUE=DATE:${it.date.replace(/-/g,'')}`);
+      const next = new Date(it.date + 'T12:00:00Z');
+      next.setUTCDate(next.getUTCDate() + 1);
+      lines.push(`DTEND;VALUE=DATE:${next.toISOString().slice(0,10).replace(/-/g,'')}`);
+    }
+
+    lines.push('END:VEVENT');
+  });
+
+  lines.push('END:VCALENDAR');
+
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `${currentTrip.name.replace(/[^a-zA-Z0-9_\-]/g,'-')}.ics`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+function icsEsc(s) {
+  return String(s).replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/,/g,'\\,').replace(/;/g,'\\;');
+}
+function icsDateTime(date, time) {
+  return date.replace(/-/g,'') + 'T' + time.slice(0,5).replace(':','') + '00';
+}
+function icsDateFromDate(d) {
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+}
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
 async function loadChatHistory() {
